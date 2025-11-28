@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+<html>
+  <head><center>
+    <br><br>
+    <title>Emotion Detection Result</title>
+  </head>
+  <body>
+    <h1>Emotion Detection Result</h1>
+    <style>
+      h1 {
+        font-weight: bold;
+        color: #4B0082;
+      }
+    </style>
+    <p>The predicted emotion is: {{ predicted_emotion }}</p><br><br></center>
+  </body>
+</html>
+
+{% endblock %}

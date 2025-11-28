@@ -1,0 +1,52 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+
+<html>
+  <head>
+    <center></center><title>Emotion Recognition</title></center>
+  </head>
+  <body>
+   <style>h1 {
+        font-weight: bold;
+        color: #4B0082;
+      }</style>
+    <center><style>
+      p {
+        font-weight: bold;
+        color: #4B0082;
+      }
+      </style>
+      <style>#prediction {
+  text-align: center;
+  font-weight: bold;
+  margin-top: 50px;
+  font-size: 24px;
+}</style>
+      <h1>Emotion Recognition</h1></center>
+    <center><p>Click the button below to start recording:</p></center>
+    <center><button id="recordButton">Record</button></center>
+    <center><p id="recordingStatus"></p>
+    <center><p><div id="prediction"></div></p></center>
+    <script>
+      var recordButton = document.getElementById('recordButton');
+      var predictionDiv = document.getElementById('prediction');
+      var recordingStatus = document.getElementById('recordingStatus');
+
+      recordButton.addEventListener('click', function() {
+        recordingStatus.innerHTML = 'Recording...';
+        fetch('/pred').then(function(response) {
+          recordingStatus.innerHTML = '';
+          return response.text();
+        }).then(function(predictionIndex) {
+          var emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad'];
+          var prediction = emotions[parseInt(predictionIndex)];
+          predictionDiv.innerHTML = 'Predicted emotion: ' + prediction;
+        });
+      });
+    </script>
+    </center></br>
+  </br>
+  </body>
+</html>
+{% endblock %}

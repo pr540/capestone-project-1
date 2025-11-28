@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speech Emotion Recognition</title>
+</head>
+<body>
+    <h1>Speech Emotion Recognition</h1>
+    <p>Click the record button to start recording your voice.</p>
+    <div>
+        <button id="record_button" onclick="startRecording()">Record</button>
+        <button id="predict_button" onclick="predict()">Predict</button>
+    </div>
+    <p id="status"></p>
+    <div>
+        <audio id="audio" controls></audio>
+    </div>
+    <div>
+        <p>Predicted Emotion: <span id="predicted_emotion"></span></p>
+    </div>
+    <script>
+        var blob;
+        function startRecording() {
+            var recordButton = document.getElementById("record_button");
+            recordButton.disabled = true;
+            recordButton.innerText = "Recording...";
+            var status = document.getElementById("status");
+            status.innerText = "Recording...";
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    var mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm',
+                        audioBitsPerSecond: 128000,
+                        videoBitsPerSecond: 128000
+                    });
+                    var chunks = [];
+                    mediaRecorder.start();
+                    status.innerText = "Recording... (click stop to end recording)";
+                    recordButton.innerText = "Stop";
+                    recordButton.disabled = false;
+                    recordButton.onclick = function() {
+                        mediaRecorder.stop();
+                    };
+                    mediaRecorder.ondataavailable = function(event) {
+                        chunks.push(event.data);
+                    };
+                    mediaRecorder.onstop = function() {
+                        var audio = document.getElementById("audio");
+                        blob = new Blob(chunks, { type: 'audio/webm' });
+                        var url = URL.createObjectURL(blob);
+                        audio.src = url;
+                        var predictButton = document.getElementById("predict_button");
+                        predictButton.disabled = false;
+                        predictButton.innerText = "Predict";
+                        recordButton.innerText = "Record";
+                        recordButton.disabled = false;
+                    };
+                });
+        }
+        function predict() {
+            var predictButton = document.getElementById("predict_button");
+            predictButton.disabled = true;
+            predictButton.innerText = "Predicting...";
+            fetch('/predict', {
+                method: 'POST',
+                body: blob
+            })
+            .then(response => response.text())
+            .then(data => {
+                console.log('Prediction:', data);
+                var predictedEmotion = document.getElementById("predicted_emotion");
+                predictedEmotion.innerText = data;
+                predictButton.innerText = "Predict";
+                predictButton.disabled = false;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                var predictedEmotion = document.getElementById("predicted_emotion");
+                predictedEmotion.innerText = "Error: " + error;
+                predictButton.innerText = "Predict";
+                predictButton.disabled = false;
+            });
+        }
+    </script>
+
+    <!-- Add this for predicted emotion result -->
+    <div>
+        {% if predicted_emotion %}
+         <h2>Emotion Detection Result:</h2>
+            <p>The predicted emotion is: {{ predicted_emotion }}</p>
+        {% endif %}
+    </div>
+
+</body>

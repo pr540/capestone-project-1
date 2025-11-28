@@ -1,0 +1,10 @@
+flask
+pyaudio
+numpy
+librosa
+scikit-learn==1.3.0
+pandas
+seaborn
+matplotlib
+tqdm
+joblib

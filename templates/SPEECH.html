@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Speech Emotion Recognition</title>
+</head>
+<body>
+	<h1>Speech Emotion Recognition</h1>
+
+	<p id="status">Click the record button to start recording.</p>
+
+	<button id="record-btn">Record Audio</button>
+
+	<button id="predict-btn" disabled>Predict Emotion</button>
+
+	<script>
+		// Create a new instance of the Recorder.js library
+		var recorder = new Recorder();
+
+		// Get references to the record button and predict button
+		var recordBtn = document.getElementById("record-btn");
+		var predictBtn = document.getElementById("predict-btn");
+
+		// Add a click event listener to the record button
+		recordBtn.addEventListener("click", function() {
+			// Start recording audio
+			recorder.start();
+			// Disable the record button and enable the predict button
+			recordBtn.disabled = true;
+			predictBtn.disabled = false;
+			// Update the status element
+			var statusElem = document.getElementById("status");
+			statusElem.innerText = "Recording... Click the predict button to predict the emotion.";
+		});
+
+		// Add a click event listener to the predict button
+		predictBtn.addEventListener("click", function() {
+			// Stop recording audio
+			recorder.stop();
+			// Disable the predict button
+			predictBtn.disabled = true;
+			// Update the status element
+			var statusElem = document.getElementById("status");
+			statusElem.innerText = "Predicting...";
+			// When the user stops recording, send the recorded audio to Flask
+			recorder.onStop(function(blob) {
+				// Create a new FormData object and append the recorded audio blob to it
+				var formData = new FormData();
+				formData.append("audio", blob);
+
+				// Send an HTTP POST request to Flask
+				fetch("/predict", {
+					method: "POST",
+					body: formData
+				}).then(function(response) {
+					// When the server responds, read the response body as text
+					return response.text();
+				}).then(function(text) {
+					// Update the result element with the predicted emotion
+					var resultElem = document.getElementById("result");
+					resultElem.innerText = "The predicted emotion is: " + text;
+					// Update the status element
+					statusElem.innerText = "Prediction complete.";
+					// Enable the record button
+					recordBtn.disabled = false;
+				});
+			});
+		});
+	</script>
+
+	<p id="result"></p>
+</body>
+</html>
