@@ -7,10 +7,12 @@ WORKDIR /app
 # Install system dependencies required for PyAudio and Librosa
 # portaudio19-dev is needed for PyAudio
 # libsndfile1 is needed for Librosa
+# ffmpeg is needed for moviepy to process video files
 RUN apt-get update && apt-get install -y \
     gcc \
     portaudio19-dev \
     libsndfile1 \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the current directory contents into the container at /app
