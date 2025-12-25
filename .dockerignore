@@ -8,3 +8,6 @@ __pycache__/
 .DS_Store
 TESS_FEATURES.csv
 train_model.py
+.env
+.github/
+*.log
