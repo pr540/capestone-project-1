@@ -1,0 +1,119 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+<!-- About Us Section -->
+<section class="about-section py-5"
+    style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 80vh;">
+    <div class="container py-5">
+        <h2 class="text-center mb-5" style="color: #2c3e50; font-weight: bold;">About Speech Emotion Recognition</h2>
+
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-lg border-0" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h3 style="color: #667eea;">🎯 Project Overview</h3>
+                        <p class="mt-3" style="font-size: 1rem; line-height: 1.8;">
+                            This Speech Emotion Recognition (SER) system uses advanced machine learning algorithms
+                            to analyze audio and video files and identify the emotional state of the speaker.
+                            The system can recognize seven different emotions: angry, disgust, fear, happy,
+                            neutral, surprise, and sad.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow-lg border-0" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h3 style="color: #764ba2;">🔬 Technology Stack</h3>
+                        <ul class="mt-3" style="font-size: 1rem; line-height: 1.8;">
+                            <li><strong>Machine Learning:</strong> MLP Neural Network</li>
+                            <li><strong>Feature Extraction:</strong> MFCC, Chroma, Mel Spectrogram</li>
+                            <li><strong>Framework:</strong> Flask (Python)</li>
+                            <li><strong>Audio Processing:</strong> Librosa, PyAudio</li>
+                            <li><strong>Video Processing:</strong> MoviePy</li>
+                            <li><strong>Deployment:</strong> Docker, Kubernetes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-lg-12">
+                <div class="card shadow-lg border-0" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <h3 style="color: #667eea;">📊 How It Works</h3>
+                        <div class="row mt-4">
+                            <div class="col-md-3 text-center mb-3">
+                                <div class="step-icon" style="font-size: 3rem; color: #667eea;">📁</div>
+                                <h5 class="mt-2">Upload File</h5>
+                                <p style="font-size: 0.9rem;">Upload audio or video file (up to 100GB)</p>
+                            </div>
+                            <div class="col-md-3 text-center mb-3">
+                                <div class="step-icon" style="font-size: 3rem; color: #764ba2;">🎵</div>
+                                <h5 class="mt-2">Extract Features</h5>
+                                <p style="font-size: 0.9rem;">Extract MFCC, Chroma, and Mel features</p>
+                            </div>
+                            <div class="col-md-3 text-center mb-3">
+                                <div class="step-icon" style="font-size: 3rem; color: #667eea;">🤖</div>
+                                <h5 class="mt-2">AI Analysis</h5>
+                                <p style="font-size: 0.9rem;">Process through trained MLP model</p>
+                            </div>
+                            <div class="col-md-3 text-center mb-3">
+                                <div class="step-icon" style="font-size: 3rem; color: #764ba2;">✅</div>
+                                <h5 class="mt-2">Get Results</h5>
+                                <p style="font-size: 0.9rem;">Receive emotion prediction</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-lg-12">
+                <div class="card shadow-lg border-0"
+                    style="border-radius: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body p-4 text-white text-center">
+                        <h3>🚀 Supported File Formats</h3>
+                        <p class="mt-3" style="font-size: 1.1rem;">
+                            <strong>Audio:</strong> WAV, MP3, OGG, FLAC, M4A<br>
+                            <strong>Video:</strong> MP4, AVI, MOV, MKV, WEBM<br>
+                            <strong>Max File Size:</strong> 100GB
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <a href="{{ url_for('home') }}#prediction-form" class="btn btn-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                      color: white; 
+                      border: none; 
+                      padding: 15px 40px; 
+                      border-radius: 50px; 
+                      font-size: 1.2rem;
+                      transition: all 0.3s ease;">
+                🎯 Try It Now
+            </a>
+        </div>
+    </div>
+</section>
+
+<style>
+    .card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+</style>
+{% endblock %}

@@ -1,21 +1,162 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-<html>
-  <head><center>
-    <br><br>
-    <title>Emotion Detection Result</title>
-  </head>
-  <body>
-    <h1>Emotion Detection Result</h1>
-    <style>
-      h1 {
-        font-weight: bold;
-        color: #4B0082;
-      }
-    </style>
-    <p>The predicted emotion is: {{ predicted_emotion }}</p><br><br></center>
-  </body>
-</html>
+<style>
+  .result-container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    text-align: center;
+  }
+
+  .result-title {
+    font-weight: bold;
+    color: #ffffff;
+    font-size: 2.5rem;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .emotion-display {
+    background: white;
+    border-radius: 15px;
+    padding: 40px;
+    margin: 30px 0;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .emotion-emoji {
+    font-size: 120px;
+    margin: 20px 0;
+    animation: bounce 1s ease-in-out;
+  }
+
+  @keyframes bounce {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  .emotion-name {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #4B0082;
+    text-transform: uppercase;
+    margin: 20px 0;
+    letter-spacing: 2px;
+  }
+
+  .emotion-description {
+    font-size: 1.2rem;
+    color: #666;
+    margin: 15px 0;
+    font-style: italic;
+  }
+
+  .btn-custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    border-radius: 50px;
+    margin: 20px 10px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-custom:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    color: white;
+    text-decoration: none;
+  }
+</style>
+
+<div class="result-container">
+  <h1 class="result-title">🎭 Emotion Detection Result</h1>
+
+  <div class="emotion-display">
+    {% if predicted_emotion == 'angry' %}
+    <div class="emotion-emoji">😠</div>
+    <div class="emotion-name">Angry</div>
+    <div class="emotion-description">The speaker appears to be expressing anger or frustration</div>
+    {% elif predicted_emotion == 'disgust' %}
+    <div class="emotion-emoji">🤢</div>
+    <div class="emotion-name">Disgust</div>
+    <div class="emotion-description">The speaker appears to be expressing disgust or distaste</div>
+    {% elif predicted_emotion == 'fear' %}
+    <div class="emotion-emoji">😨</div>
+    <div class="emotion-name">Fear</div>
+    <div class="emotion-description">The speaker appears to be expressing fear or anxiety</div>
+    {% elif predicted_emotion == 'happy' %}
+    <div class="emotion-emoji">😊</div>
+    <div class="emotion-name">Happy</div>
+    <div class="emotion-description">The speaker appears to be expressing happiness or joy</div>
+    {% elif predicted_emotion == 'neutral' %}
+    <div class="emotion-emoji">😐</div>
+    <div class="emotion-name">Neutral</div>
+    <div class="emotion-description">The speaker appears to be expressing a neutral emotion</div>
+    {% elif predicted_emotion == 'ps' %}
+    <div class="emotion-emoji">🤩</div>
+    <div class="emotion-name">Pleasant Surprise</div>
+    <div class="emotion-description">The speaker appears to be expressing pleasant surprise</div>
+    {% elif predicted_emotion == 'surprise' %}
+    <div class="emotion-emoji">😲</div>
+    <div class="emotion-name">Surprise</div>
+    <div class="emotion-description">The speaker appears to be expressing surprise</div>
+    {% elif predicted_emotion == 'sad' %}
+    <div class="emotion-emoji">😢</div>
+    <div class="emotion-name">Sad</div>
+    <div class="emotion-description">The speaker appears to be expressing sadness</div>
+    {% else %}
+    <div class="emotion-emoji">🤔</div>
+    <div class="emotion-name">{{ predicted_emotion }}</div>
+    <div class="emotion-description">Emotion detected</div>
+    {% endif %}
+
+    {% if note %}
+    <div style="color: #d9534f; margin-top: 10px; font-weight: bold;">
+      ⚠️ {{ note }}
+    </div>
+    {% endif %}
+
+    {% if confidence is defined %}
+    <div style="margin-top: 10px; color: #555;">
+      Overall Confidence: <strong>{{ confidence }}%</strong>
+    </div>
+    {% endif %}
+
+    {% if visual_emotion %}
+    <hr style="margin: 20px 0; border-top: 1px solid #eee;">
+    <div style="display: flex; justify-content: space-around; text-align: center;">
+      <div>
+        <div style="font-size: 1.5rem;">🎤</div>
+        <div style="font-weight: bold; color: #666;">Audio Emotion</div>
+        <div style="color: #4B0082;">{{ audio_emotion|upper }}</div>
+      </div>
+      <div>
+        <div style="font-size: 1.5rem;">📷</div>
+        <div style="font-weight: bold; color: #666;">Visual Emotion</div>
+        <div style="color: #4B0082;">{{ visual_emotion|upper }}</div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <a href="{{ url_for('home') }}" class="btn-custom">🔄 Try Another</a>
+  <a href="/" class="btn-custom">🏠 Go Home</a>
+</div>
 
 {% endblock %}

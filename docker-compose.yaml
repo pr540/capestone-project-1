@@ -1,16 +1,15 @@
-version: '3.8'
-
 services:
   speech-emotion-app:
     build:
       context: .
       dockerfile: Dockerfile
+    image: speech-emotion-app:latest
     container_name: speech-emotion-app
     ports:
-      - "5900:5900"
+      - "50001:5000"
     environment:
       - FLASK_APP=app.py
-      - FLASK_DEBUG=1
+      - FLASK_DEBUG=0
     volumes:
       - .:/app
     restart: unless-stopped

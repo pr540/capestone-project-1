@@ -5,19 +5,19 @@
 <section class="banner_w3lspvt" id="home">
 	<div class="csslider infinity" id="slider1">
 
-				<div class="banner-top1">
-					<div class="overlay">
-						<div class="container">
-							<div class="w3layouts-banner-info text-center">
-								<h3 class="text-wh">SPEECH EMOTION RECOGNITION</h3>
-								<h4 class="text-wh mx-auto my-4"><b><br></b></h4>
-								<br>
-								<p class="text-li mx-auto mt-2">
+		<div class="banner-top1">
+			<div class="overlay">
+				<div class="container">
+					<div class="w3layouts-banner-info text-center">
+						<h3 class="text-wh">SPEECH EMOTION RECOGNITION</h3>
+						<h4 class="text-wh mx-auto my-4"><b><br></b></h4>
+						<br>
+						<p class="text-li mx-auto mt-2">
 
-							</div>
-						</div>
 					</div>
 				</div>
+			</div>
+		</div>
 	</div>
 </section>
 <!-- //banner -->
@@ -27,18 +27,22 @@
 		<h3 class="heading mb-sm-5 mb-4 text-center"> My Project</h3>
 		<div class="row core-grids">
 			<div class="col-lg-6 core-left">
-			<br>
+				<br>
 				<img src="{{ url_for('static', filename='images/13.jpg') }}" class="img-fluid" alt="" />
 			</div>
 			<div class="col-lg-6 core-right">
-				<h3 class="mt-4">The aim of this project is to compare the performance of different machine learning algorithms in automatic emotion recognition.
-					</h3>
+				<h3 class="mt-4">The aim of this project is to compare the performance of different machine learning
+					algorithms in automatic emotion recognition.
+				</h3>
 				<p class="mt-3">
- Speech Emotion Recognition (SER) is a system that can identify the emotion of different audio samples.The machine learning algorithms under investigation include: k-nearest neighbours, support vector machines, Random Forest, MLP and NB.
-The best performance model is taken for prediction.
-Flask framework is implemented to give a better user interface with the model.
-The emotion predicted in my system is 'angry‘, 'disgust', 'fear', 'happy', 'neutral', ‘surprise', 'sad'
-</p>
+					Speech Emotion Recognition (SER) is a system that can identify the emotion of different audio
+					samples.The machine learning algorithms under investigation include: k-nearest neighbours, support
+					vector machines, Random Forest, MLP and NB.
+					The best performance model is taken for prediction.
+					Flask framework is implemented to give a better user interface with the model.
+					The emotion predicted in my system is 'angry‘, 'disgust', 'fear', 'happy', 'neutral', ‘surprise',
+					'sad'
+				</p>
 			</div>
 		</div>
 	</div>
@@ -51,30 +55,36 @@ The emotion predicted in my system is 'angry‘, 'disgust', 'fear', 'happy', 'ne
 		<h3 class="heading mb-sm-5 mb-4 text-center"> FEATURE EXTRACTION</h3>
 		<div class="row blog-grids">
 			<div class="col-lg-4 col-md-6 blog-left mb-lg-0 mb-md-5 pb-md-5 pb-5">
-				<a href="{{ url_for('predict') }}">
-				<img src="{{ url_for('static', filename='images/chrom.png') }}" class="img-fluid" alt="" />
+				<a href="#prediction-form">
+					<img src="{{ url_for('static', filename='images/chrom.png') }}" class="img-fluid" alt="" />
 					<div class="blog-info">
 						<h4>Chromas</h4>
-						<p class="mt-1"> Chroma features extracted using short-time Fourier transform (STFT) of the audio signal. Chroma features represent the 12 distinct pitches in an octave and provide information about the harmonic content of the audio signal.</p>
+						<p class="mt-1"> Chroma features extracted using short-time Fourier transform (STFT) of the
+							audio signal. Chroma features represent the 12 distinct pitches in an octave and provide
+							information about the harmonic content of the audio signal.</p>
 					</div>
 				</a>
 				<br><br><br>
 			</div>
 			<div class="col-lg-4 col-md-6 blog-middle mb-lg-0 mb-md-5 pb-md-5 pb-5">
-				<a href="{{ url_for('predict') }}">
-				<img src="{{ url_for('static', filename='images/mfcc.png') }}" class="img-fluid" alt="" />
+				<a href="#prediction-form">
+					<img src="{{ url_for('static', filename='images/mfcc.png') }}" class="img-fluid" alt="" />
 					<div class="blog-info">
 						<h4>MFCCs</h4>
-						<p class="mt-1">Mel-Frequency Cepstral Coefficients (MFCCs) of the audio signal. MFCCs are commonly used features in speech and audio processing, and they represent the spectral envelope of a sound.</p>
+						<p class="mt-1">Mel-Frequency Cepstral Coefficients (MFCCs) of the audio signal. MFCCs are
+							commonly used features in speech and audio processing, and they represent the spectral
+							envelope of a sound.</p>
 					</div>
 				</a><br><br>
 			</div>
 			<div class="col-lg-4 col-md-6 blog-right mb-lg-0 mb-sm-5 pb-lg-5 pb-md-5">
-				<a href="{{ url_for('predict') }}">
-				<img src="{{ url_for('static', filename='images/mel.png') }}" class="img-fluid" alt="">
+				<a href="#prediction-form">
+					<img src="{{ url_for('static', filename='images/mel.png') }}" class="img-fluid" alt="">
 					<div class="blog-info">
 						<h4>Mel Spectrogram</h4>
-						<p class="mt-1">Mel spectrograms represent the power spectrum of an audio signal on a Mel frequency scale, which is a more perceptually relevant frequency scale compared to the linear frequency scale.
+						<p class="mt-1">Mel spectrograms represent the power spectrum of an audio signal on a Mel
+							frequency scale, which is a more perceptually relevant frequency scale compared to the
+							linear frequency scale.
 						</p>
 					</div>
 				</a>
@@ -84,20 +94,144 @@ The emotion predicted in my system is 'angry‘, 'disgust', 'fear', 'happy', 'ne
 </section>
 
 
-  <body><center>
+<center>
+	<br>
+	<h1>Emotion Recognition</h1>
+	<style>
+		h1 {
+			font-weight: bold;
+			color: #4B0082;
+		}
 
-  </body><br>
- <center><h1>Emotion Recognition</h1>
-	 <style>
-      h1 {
-        font-weight: bold;
-        color: #4B0082;
-      }
-    </style>
-    <form action="/predict" method="POST" enctype="multipart/form-data">
-        <label for="audio_file">Upload an audio file:</label>
-        <input type="file" id="audio_file" name="audio_file"><br><br>
-        <input type="submit" value="Predict Emotion"></center>
-    </form><br><br><br>
-</html>
+		.upload-container {
+			max-width: 600px;
+			margin: 30px auto;
+			padding: 40px;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border-radius: 20px;
+			box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+		}
+
+		.upload-form {
+			background: white;
+			padding: 30px;
+			border-radius: 15px;
+		}
+
+		.form-label {
+			font-size: 1.2rem;
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 15px;
+			display: block;
+		}
+
+		.file-input {
+			width: 100%;
+			padding: 15px;
+			border: 2px dashed #667eea;
+			border-radius: 10px;
+			margin: 15px 0;
+			cursor: pointer;
+			transition: all 0.3s ease;
+		}
+
+		.file-input:hover {
+			border-color: #764ba2;
+			background: #f8f9ff;
+		}
+
+		.submit-btn {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			border: none;
+			color: white;
+			padding: 15px 40px;
+			font-size: 1.2rem;
+			border-radius: 50px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			margin-top: 20px;
+		}
+
+		.submit-btn:hover {
+			transform: translateY(-3px);
+			box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+		}
+
+		.file-info {
+			font-size: 0.9rem;
+			color: #666;
+			margin-top: 10px;
+			font-style: italic;
+		}
+
+		.file-size-display {
+			margin-top: 10px;
+			padding: 10px;
+			background: #f0f0f0;
+			border-radius: 5px;
+			font-size: 0.9rem;
+			display: none;
+		}
+	</style>
+	<div class="upload-container">
+		<form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
+			<label for="audio_file" class="form-label">📁 Upload Audio or Video File</label>
+			<input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="file-input">
+			<div class="file-info">
+				✅ Supported formats: WAV, MP3, OGG, FLAC, M4A, MP4, AVI, MOV, MKV, WEBM<br>
+				📊 Maximum file size: 100GB
+			</div>
+			<div id="file-size-display" class="file-size-display"></div>
+			<input type="submit" value="🎯 Predict Emotion" class="submit-btn">
+		</form>
+	</div>
+
+	<script>
+		// Display file size when selected
+		document.getElementById('audio_file').addEventListener('change', function (e) {
+			const file = e.target.files[0];
+			const display = document.getElementById('file-size-display');
+
+			if (file) {
+				const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+				const maxSizeMB = 100 * 1024; // 100GB
+
+				display.style.display = 'block';
+
+				if (sizeMB > maxSizeMB) {
+					display.style.color = 'red';
+					display.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB / 1024}GB`;
+				} else {
+					display.style.color = 'green';
+					display.innerHTML = `✅ File size: ${sizeMB}MB - Ready to upload`;
+				}
+			} else {
+				display.style.display = 'none';
+			}
+		});
+
+		// Validate before submit and show loading state
+		document.getElementById('prediction-form').addEventListener('submit', function (e) {
+			const file = document.getElementById('audio_file').files[0];
+			if (file) {
+				const sizeMB = file.size / (1024 * 1024);
+				if (sizeMB > 100 * 1024) { // 100GB
+					e.preventDefault();
+					alert('File is too large! Maximum size is 100GB. Your file is ' + sizeMB.toFixed(2) + 'MB');
+					return false;
+				}
+			}
+
+			// Show loading state
+			const btn = document.querySelector('.submit-btn');
+			btn.value = '⏳ Processing... Please wait';
+			btn.style.opacity = '0.7';
+			btn.style.cursor = 'wait';
+			// We don't disable immediately to ensure form submission happens, 
+			// but we change the text to deter re-clicks.
+		});
+	</script>
+	<br><br><br>
+</center>
 {% endblock %}
