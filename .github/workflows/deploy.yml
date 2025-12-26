@@ -30,3 +30,4 @@ jobs:
           tags: |
             2000030906/speech-emotion-app:latest
             2000030906/speech-emotion-app:${{ github.sha }}
+            
