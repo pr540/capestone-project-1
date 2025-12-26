@@ -16,20 +16,15 @@ RUN apt-get update && apt-get install -y \
     libportaudio2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast installation
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uv/bin/uv
-
-# Set UV timeout
-ENV UV_HTTP_TIMEOUT=600
-ENV PYTHONUNBUFFERED=1
+# Setup python environment
+# Upgrade pip to latest version
+RUN pip install --upgrade pip
 
 # Copy requirements file
 COPY requirements.txt .
 
-# Install dependencies in one go
-# Removed manual torch install as it's not used by the app and saves space/time
-RUN --mount=type=cache,target=/root/.cache/uv \
-    /uv/bin/uv pip install --system -r requirements.txt
+# Install dependencies using standard pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
 COPY . .
