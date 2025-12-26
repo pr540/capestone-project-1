@@ -6,11 +6,11 @@ on:
       - main
 
 jobs:
-  build-and-push:
+  docker:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -22,11 +22,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/speech-emotion-app:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/speech-emotion-app:${{ github.sha }}
+            2000030906/speech-emotion-app:latest
+            2000030906/speech-emotion-app:${{ github.sha }}
