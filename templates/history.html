@@ -1,0 +1,104 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+<style>
+    .history-container {
+        padding: 50px 0;
+        background: #f8f9fa;
+        min-height: 80vh;
+    }
+    .card-history {
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border: none;
+        margin-bottom: 30px;
+    }
+    .table-custom th {
+        background: #4B0082;
+        color: white;
+        border: none;
+    }
+    .emotion-badge {
+        font-weight: bold;
+        padding: 5px 12px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+    }
+    .badge-angry { background: #ff4d4d; color: white; }
+    .badge-happy { background: #2ecc71; color: white; }
+    .badge-sad { background: #3498db; color: white; }
+    .badge-fear { background: #9b59b6; color: white; }
+    .badge-neutral { background: #95a5a6; color: white; }
+    .badge-surprise { background: #f1c40f; color: black; }
+    .badge-disgust { background: #e67e22; color: white; }
+</style>
+
+<div class="history-container">
+    <div class="container">
+        <h2 class="text-center mb-5" style="color: #4B0082; font-weight: bold;">📊 Analyzed Prediction History</h2>
+        
+        <div class="card card-history">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-custom">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Timestamp</th>
+                                <th>Filename</th>
+                                <th>Audio Emotion</th>
+                                <th>Visual Emotion</th>
+                                <th>Final Result</th>
+                                <th>Accuracy/Conf</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prediction in predictions %}
+                            <tr>
+                                <td>{{ prediction.id }}</td>
+                                <td>{{ prediction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td><small>{{ prediction.filename }}</small></td>
+                                <td>
+                                    <span class="emotion-badge badge-{{ prediction.audio_emotion.lower() if prediction.audio_emotion else 'neutral' }}">
+                                        {{ prediction.audio_emotion }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="emotion-badge badge-{{ prediction.visual_emotion.lower() if prediction.visual_emotion else 'neutral' }}">
+                                        {{ prediction.visual_emotion }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>
+                                        <span class="emotion-badge badge-{{ prediction.final_emotion.lower() if prediction.final_emotion else 'neutral' }}">
+                                            {{ prediction.final_emotion }}
+                                        </span>
+                                    </strong>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 10px; margin-top: 5px;">
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ prediction.confidence * 100 }}%"></div>
+                                    </div>
+                                    <small>{{ (prediction.confidence * 100)|round(1) }}%</small>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">No analysis history found in database.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center">
+            <a href="{{ url_for('home') }}" class="btn btn-primary px-5 py-2" style="border-radius: 50px; background: #4B0082; border: none;">
+                <i class="fa fa-plus"></i> New Analysis
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,6 +19,8 @@ except ImportError:
         print("[WARNING] Could not import FER from 'fer' or 'fer.fer'. Facial analysis will be disabled.")
         FER = None
 from collections import Counter
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -60,8 +62,8 @@ def analyze_video_faces(video_path):
         frame_count = 0
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
-        # Process every 10th frame to save time
-        skip_frames = 10 
+        # Process every 5th frame for better accuracy (was 10th)
+        skip_frames = 5 
         
         print(f"[INFO] Analyzing video faces: {total_frames} frames")
 
@@ -79,31 +81,30 @@ def analyze_video_faces(video_path):
             result = det.detect_emotions(frame)
             
             if result:
-                # Get the dominant emotion for the largest face
-                # Usually the first one is the main one or we sort by box size
-                # Let's simple take the first face detected
+                # Store the full emotion dictionary of the detected face
+                # This allows us to do weighted averaging later for better accuracy
                 emotions = result[0]['emotions']
-                # Find max emotion
-                max_emotion = max(emotions, key=emotions.get)
-                max_score = emotions[max_emotion]
-                
-                # Filter low confidence
-                if max_score > 0.3:
-                    emotions_list.append(max_emotion)
+                emotions_list.append(emotions)
         
         cap.release()
         
         if not emotions_list:
             return "neutral", 0.0 # Default if no faces found
             
-        # Find most frequent emotion
-        emotion_counts = Counter(emotions_list)
-        dominant_emotion = emotion_counts.most_common(1)[0][0]
+        # Accumulate scores for better weighted accuracy
+        total_emotion_scores = {}
+        for emoirs in emotions_list:
+            for emotion, score in emoirs.items():
+                total_emotion_scores[emotion] = total_emotion_scores.get(emotion, 0) + score
         
-        # Calculate confidence as (count of dominant / total detections)
-        confidence = emotion_counts[dominant_emotion] / len(emotions_list)
+        # Find absolute dominant emotion by total score weight
+        dominant_emotion = max(total_emotion_scores, key=total_emotion_scores.get)
         
-        print(f"[INFO] Visual Analysis: {dominant_emotion} ({confidence:.2f})")
+        # Calculate relative confidence
+        total_score_sum = sum(total_emotion_scores.values())
+        confidence = total_emotion_scores[dominant_emotion] / total_score_sum if total_score_sum > 0 else 0.0
+        
+        print(f"[INFO] Visual Analysis Result: {dominant_emotion} (Confidence: {confidence:.2f})")
         return dominant_emotion, confidence
 
     except Exception as e:
@@ -117,6 +118,33 @@ ALLOWED_EXTENSIONS = ALLOWED_AUDIO_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 
 # Configure Flask app
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024 * 1024  # 100GB max file size
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///emotions.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
+class PredictionResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(100), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    audio_emotion = db.Column(db.String(50))
+    visual_emotion = db.Column(db.String(50))
+    final_emotion = db.Column(db.String(50))
+    confidence = db.Column(db.Float)
+    
+    def __repr__(self):
+        return f'<Prediction {self.id} - {self.final_emotion}>'
+
+# Create tables
+with app.app_context():
+    db.create_all()
 
 # Warmup librosa/numba to prevent timeout on first request
 try:
@@ -138,9 +166,13 @@ except Exception as e:
     print(f"[WARNING] Librosa warmup failed: {e}")
 
 # Open the PKL file in binary mode
-with open('mlp.pkl', 'rb') as f:
-    # Load the object from the file
-    model = pickle.load(f)
+try:
+    with open('mlp.pkl', 'rb') as f:
+        # Load the object from the file
+        model = pickle.load(f)
+except Exception as e:
+    print(f"[ERROR] Could not load mlp.pkl: {e}")
+    model = None
 
 # Define the emotions
 emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
@@ -201,9 +233,16 @@ def extract_audio_from_video(video_path):
         # -acodec: copy (if possible) or pcm_s16le
         # ar: sample rate 
         
+        # Use ffmpeg via imageio_ffmpeg to ensure it exists
+        import imageio_ffmpeg
+        try:
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_exe = 'ffmpeg'
+
         # We use pcm_s16le and 22050Hz to ensure compatibility and speed
         command = [
-            'ffmpeg', '-y', 
+            ffmpeg_exe, '-y', 
             '-i', video_path,
             '-ss', '00:00:00',
             '-t', '5',
@@ -301,7 +340,14 @@ def aboutus():
 
 @app.route('/analyze')
 def analyze():
-    return render_template('index.html')
+    """Route to view prediction history from the database."""
+    try:
+        # Fetch all prediction results sorted by timestamp decending
+        predictions = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).all()
+        return render_template('history.html', predictions=predictions, title="Analyzed History")
+    except Exception as e:
+        print(f"[ERROR] Could not fetch history: {e}")
+        return render_template('history.html', predictions=[], title="Analyzed History")
 
 @app.route('/pred')
 def pred():
@@ -326,129 +372,161 @@ def pred():
 # Define the prediction route
 @app.route('/predict', methods=['POST'])
 def predict():
+    # Check if file was uploaded
+    if 'audio_file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    audio_file = request.files['audio_file']
+    
+    # Check if file is empty
+    if audio_file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    # Check if file type is allowed
+    if not allowed_file(audio_file.filename):
+        return jsonify({
+            'error': f'File type not supported. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
+        }), 400
+
+    # Check file size (additional validation beyond Flask's MAX_CONTENT_LENGTH)
+    audio_file.seek(0, 2)  # Seek to end of file
+    file_size = audio_file.tell()  # Get current position (file size)
+    audio_file.seek(0)  # Reset to beginning
+    
+    max_size = 100 * 1024 * 1024 * 1024  # 100GB
+    if file_size > max_size:
+        return jsonify({
+            'error': f'File too large. Maximum size is {max_size / (1024 * 1024):.0f}MB. Your file is {file_size / (1024 * 1024):.2f}MB'
+        }), 400
+
+    # Debug logging
+    print(f"[DEBUG] Received file: {audio_file.filename}")
+    print(f"[DEBUG] File size: {file_size / (1024 * 1024):.2f}MB")
+    print(f"[DEBUG] Is video file: {is_video_file(audio_file.filename)}")
+    
+    # Load audio file (handles both audio and video files)
+    # Returns: Audio Array, Sample Rate, Visual Emotion (if video), Visual Confidence
+    X, sample_rate, visual_emotion, visual_confidence = load_audio_file(audio_file)
+    
+    # Check for silence or very low audio
+    rms = librosa.feature.rms(y=X)
+    mean_rms = np.mean(rms)
+    print(f"[DEBUG] Audio RMS Energy: {mean_rms}")
+    
+    # Threshold for silence (adjustable)
+    SILENCE_THRESHOLD = 0.001
+    
+    if mean_rms < SILENCE_THRESHOLD:
+        # If silence, but we have visual emotion, fallback to visual!
+        if visual_emotion and visual_confidence > 0.4:
+            print(f"[DEBUG] Silence detected, but visual emotion found: {visual_emotion}")
+            
+             # Save to DB
+            try:
+                new_prediction = PredictionResult(
+                    filename=secure_filename(audio_file.filename),
+                    audio_emotion="Neutral (Silent)",
+                    visual_emotion=visual_emotion,
+                    final_emotion=visual_emotion,
+                    confidence=visual_confidence
+                )
+                db.session.add(new_prediction)
+                db.session.commit()
+            except Exception as db_e:
+                 print(f"[ERROR] DB Save failed: {db_e}")
+
+            return render_template('result.html', 
+                                 predicted_emotion=visual_emotion, 
+                                 confidence=round(visual_confidence * 100, 1), 
+                                 note=f"Audio silent, result based on facial expression.",
+                                 visual_emotion=visual_emotion,
+                                 audio_emotion="Neutral (Silent)")
+        
+        print("[DEBUG] Detected silence or near-silence. Defaulting to 'neutral'.")
+        return render_template('result.html', predicted_emotion='neutral', confidence=0.0, note="Audio level too low (Silence detected)")
+
+    # Extract features from the audio
+    result = np.array([])
+    stft = np.abs(librosa.stft(X))
+    chromas = np.mean(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T, axis=0)
+    result = np.hstack((result, chromas))
+    mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40).T, axis=0)
+    result = np.hstack((result, mfccs))
+    mels = np.mean(librosa.feature.melspectrogram(y=X, sr=sample_rate, n_mels=128).T, axis=0)
+    result = np.hstack((result, mels))
+    
+    # Make a prediction using the trained model
+    X_test = result.reshape(1, -1)
+    
+    # Get probabilities
     try:
-        # Check if file was uploaded
-        if 'audio_file' not in request.files:
-            return jsonify({'error': 'No file uploaded'}), 400
+        probabilities = model.predict_proba(X_test)[0]
+        prediction = model.predict(X_test)
+        audio_emotion = prediction[0]
         
-        audio_file = request.files['audio_file']
+        # Find max probability
+        audio_confidence = np.max(probabilities)
+        print(f"[DEBUG] Audio Predicted: {audio_emotion}, Confidence: {audio_confidence:.2f}")
         
-        # Check if file is empty
-        if audio_file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+        # DECISION LOGIC: Combine Audio and Visual
+        final_emotion = audio_emotion
+        final_confidence = audio_confidence
+        note = None
         
-        # Check if file type is allowed
-        if not allowed_file(audio_file.filename):
-            return jsonify({
-                'error': f'File type not supported. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
-            }), 400
-
-        # Check file size (additional validation beyond Flask's MAX_CONTENT_LENGTH)
-        audio_file.seek(0, 2)  # Seek to end of file
-        file_size = audio_file.tell()  # Get current position (file size)
-        audio_file.seek(0)  # Reset to beginning
-        
-        max_size = 100 * 1024 * 1024 * 1024  # 100GB
-        if file_size > max_size:
-            return jsonify({
-                'error': f'File too large. Maximum size is {max_size / (1024 * 1024):.0f}MB. Your file is {file_size / (1024 * 1024):.2f}MB'
-            }), 400
-
-        # Debug logging
-        print(f"[DEBUG] Received file: {audio_file.filename}")
-        print(f"[DEBUG] File size: {file_size / (1024 * 1024):.2f}MB")
-        print(f"[DEBUG] Is video file: {is_video_file(audio_file.filename)}")
-        
-        # Load audio file (handles both audio and video files)
-        # Returns: Audio Array, Sample Rate, Visual Emotion (if video), Visual Confidence
-        X, sample_rate, visual_emotion, visual_confidence = load_audio_file(audio_file)
-        
-        # Check for silence or very low audio
-        rms = librosa.feature.rms(y=X)
-        mean_rms = np.mean(rms)
-        print(f"[DEBUG] Audio RMS Energy: {mean_rms}")
-        
-        # Threshold for silence (adjustable)
-        SILENCE_THRESHOLD = 0.001
-        
-        if mean_rms < SILENCE_THRESHOLD:
-            # If silence, but we have visual emotion, fallback to visual!
-            if visual_emotion and visual_confidence > 0.4:
-                print(f"[DEBUG] Silence detected, but visual emotion found: {visual_emotion}")
-                return render_template('result.html', 
-                                     predicted_emotion=visual_emotion, 
-                                     confidence=round(visual_confidence * 100, 1), 
-                                     note=f"Audio silent, result based on facial expression.",
-                                     visual_emotion=visual_emotion,
-                                     audio_emotion="Neutral (Silent)")
+        if visual_emotion:
+            print(f"[DEBUG] Fusion - Audio: {audio_emotion} ({audio_confidence:.2f}), Visual: {visual_emotion} ({visual_confidence:.2f})")
             
-            print("[DEBUG] Detected silence or near-silence. Defaulting to 'neutral'.")
-            return render_template('result.html', predicted_emotion='neutral', confidence=0.0, note="Audio level too low (Silence detected)")
-
-        # Extract features from the audio
-        result = np.array([])
-        stft = np.abs(librosa.stft(X))
-        chromas = np.mean(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T, axis=0)
-        result = np.hstack((result, chromas))
-        mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40).T, axis=0)
-        result = np.hstack((result, mfccs))
-        mels = np.mean(librosa.feature.melspectrogram(y=X, sr=sample_rate, n_mels=128).T, axis=0)
-        result = np.hstack((result, mels))
-        
-        # Make a prediction using the trained model
-        X_test = result.reshape(1, -1)
-        
-        # Get probabilities
-        try:
-            probabilities = model.predict_proba(X_test)[0]
-            prediction = model.predict(X_test)
-            audio_emotion = prediction[0]
-            
-            # Find max probability
-            audio_confidence = np.max(probabilities)
-            print(f"[DEBUG] Audio Predicted: {audio_emotion}, Confidence: {audio_confidence:.2f}")
-            
-            # DECISION LOGIC: Combine Audio and Visual
-            final_emotion = audio_emotion
-            final_confidence = audio_confidence
-            note = None
-            
-            if visual_emotion:
-                print(f"[DEBUG] Fusion - Audio: {audio_emotion} ({audio_confidence:.2f}), Visual: {visual_emotion} ({visual_confidence:.2f})")
-                
-                # If audio is "neutral" or "calm" but visual is strong "happy" (smile), prefer visual
-                if audio_emotion in ['neutral', 'calm'] and visual_emotion in ['happy', 'happy', 'surprise'] and visual_confidence > 0.5:
+            # 1. Strong Visual Override for Happy/Surprise/Angry
+            # If the face is clearly happy/surprised/angry, it's often more reliable than audio.
+            # Lowering threshold slightly to catch more visual cues
+            if visual_emotion in ['happy', 'surprise', 'angry'] and visual_confidence > 0.4:
+                 # If audio is stuck on 'sad' or 'neutral' but face is clearly something else, trust face
+                 if audio_emotion in ['sad', 'neutral', 'calm'] or visual_confidence > audio_confidence:
                      final_emotion = visual_emotion
                      final_confidence = visual_confidence
-                     note = f"Audio was neutral, but facial expression indicated {visual_emotion}."
+                     note = f"Facial expression analysis detected {visual_emotion} with high priority."
+
+            # 2. General Conflict Resolution
+            # If visual confidence is significantly higher than audio confidence
+            elif visual_confidence > (audio_confidence + 0.1):
+                final_emotion = visual_emotion
+                final_confidence = visual_confidence
+                note = "Result based on facial expression due to higher confidence."
                 
-                # If visual confidence is very high and audio is low, prefer visual
-                elif visual_confidence > 0.8 and audio_confidence < 0.5:
-                    final_emotion = visual_emotion
-                    final_confidence = visual_confidence
-                    note = "Result based primarily on facial expression due to higher confidence."
-                    
-            
-        except AttributeError:
-            # Fallback if model doesn't support predict_proba
-            prediction = model.predict(X_test)
-            final_emotion = prediction[0]
-            final_confidence = 1.0 # Mock confidence
-            audio_emotion = final_emotion
+            # 3. If audio is 'neutral' or 'calm' and visual has ANY emotion detected
+            elif audio_emotion in ['neutral', 'calm'] and visual_confidence > 0.3:
+                 final_emotion = visual_emotion
+                 final_confidence = visual_confidence
+                 note = f"Audio was neutral, using facial expression: {visual_emotion}."
         
-        return render_template('result.html', 
-                             predicted_emotion=final_emotion, 
-                             confidence=round(final_confidence * 100, 1),
-                             visual_emotion=visual_emotion,
-                             audio_emotion=audio_emotion,
-                             note=note)
+    except AttributeError:
+        # Fallback if model doesn't support predict_proba
+        prediction = model.predict(X_test)
+        final_emotion = prediction[0]
+        final_confidence = 1.0 # Mock confidence
+        audio_emotion = final_emotion
     
-    except Exception as e:
-        # Log the error for debugging
-        print(f"Error in /predict: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+    # Save to DB
+    try:
+        new_prediction = PredictionResult(
+            filename=secure_filename(audio_file.filename),
+            audio_emotion=audio_emotion,
+            visual_emotion=visual_emotion if visual_emotion else "N/A",
+            final_emotion=final_emotion,
+            confidence=final_confidence
+        )
+        db.session.add(new_prediction)
+        db.session.commit()
+        print(f"[INFO] Saved prediction to DB: {final_emotion}")
+    except Exception as db_e:
+        print(f"[ERROR] DB Save failed: {db_e}")
+
+    return render_template('result.html', 
+                         predicted_emotion=final_emotion, 
+                         confidence=round(final_confidence * 100, 1),
+                         visual_emotion=visual_emotion,
+                         audio_emotion=audio_emotion,
+                         note=note)
 
 
 # Error handler for file size limit
@@ -460,4 +538,4 @@ def request_entity_too_large(error):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=True, port=50001)

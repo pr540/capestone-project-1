@@ -30,9 +30,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose port and define environment variables
-EXPOSE 5000
+EXPOSE 50001
 ENV FLASK_APP=app.py
 ENV NUMBA_CACHE_DIR=/tmp
 
 # Run the application
-CMD ["gunicorn", "--workers=2", "--timeout=300", "--bind=0.0.0.0:5000", "app:app"]
+CMD ["gunicorn", "--workers=2", "--timeout=300", "--bind=0.0.0.0:50001", "app:app"]

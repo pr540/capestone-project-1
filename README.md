@@ -8,7 +8,9 @@ This application analyzes audio and video files to detect human emotions using m
   - Video: MP4, AVI, MOV, MKV, WEBM
 - **Smart Analysis**: Extracts audio from video files automatically.
 - **Visual Feedback**: Displays detected emotions with animated emojis and confidence scores.
-- **Dual Analysis**: Can analyze facial expressions in videos alongside audio emotion detection (if enabled).
+- **Improved Accuracy**: Enhanced fusion logic that prioritizes facial expressions (Happy, Surprise, Angry) to prevent audio-based misclassifications.
+- **Database Integration**: Automatically saves all prediction results to a SQLite database (`emotions.db`) for tracking.
+- **Dual Analysis**: Analyzes facial expressions in videos alongside audio emotion detection for high-precision results.
 
 ## 📋 Prerequisites
 
@@ -59,11 +61,11 @@ If you prefer using standard Docker commands:
 
 2. **Run the Container**
    ```bash
-   docker run -p 5000:5000 speech-emotion-app
+   docker run -p 50001:50001 speech-emotion-app
    ```
 
 3. **Access the App**
-   Go to: **http://localhost:5000**
+   Go to: **http://localhost:50001**
 
 ---
 
@@ -99,7 +101,7 @@ If you want to run it directly on your machine, follow these steps carefully.
    ```
 
 5. **Access the App**
-   Go to: **http://localhost:5000**
+   Go to: **http://localhost:50001**
 
 ---
 
@@ -125,4 +127,4 @@ capestone-project-1/
 - If port 50001 is busy, edit `docker-compose.yaml` and change `"50001:5000"` to `"50002:5000"`.
 
 **Issue: "ffmpeg not found" (Local Run)**
-- Ensure FFmpeg is installed and added to your system PATH. This is pre-installed in the Docker version.
+- **FIXED**: The application now includes `imageio-ffmpeg` which automatically provides the necessary binaries for Windows, Mac, and Linux. No manual installation is required.
