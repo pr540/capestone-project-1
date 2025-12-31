@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speech-emotion-app
+  labels:
+    app: speech-emotion-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: speech-emotion-app
+  template:
+    metadata:
+      labels:
+        app: speech-emotion-app
+    spec:
+      containers:
+        - name: speech-emotion-app
+          image: speech-emotion-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 50005
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          env:
+            - name: FLASK_APP
+              value: "app.py"
+            - name: FLASK_DEBUG
+              value: "0"

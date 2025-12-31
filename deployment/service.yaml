@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: speech-emotion-service
+spec:
+  selector:
+    app: speech-emotion-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 50005
+  type: LoadBalancer # Use NodePort if running locally without a LoadBalancer provisioner

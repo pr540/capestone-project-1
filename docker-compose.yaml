@@ -6,7 +6,7 @@ services:
     image: speech-emotion-app:latest
     container_name: speech-emotion-app
     ports:
-      - "50001:50001"
+      - "50005:50005"
     env_file:
       - .env
     environment:

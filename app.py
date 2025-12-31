@@ -20,6 +20,11 @@ db.init_app(app)
 with app.app_context(): db.create_all()
 warmup()
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static', 'images'),
+                               'logo1.png', mimetype='image/png')
+
 @app.route('/')
 def home(): return render_template('index.html', title="Home")
 
@@ -74,4 +79,14 @@ def predict():
         if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): os.unlink(audio_path)
 
 if __name__ == '__main__':
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        print(f" * Running on http://{local_ip}:50005 (Press CTRL+C to quit)")
+    except Exception:
+        print(" * Could not determine local IP")
+    
     app.run(host='0.0.0.0', debug=False, port=50005)
