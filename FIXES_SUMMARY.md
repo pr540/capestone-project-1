@@ -98,3 +98,17 @@ The application now returns proper error messages:
 - Video processing may take slightly longer due to audio extraction
 - FFmpeg is required in the Docker container for video processing
 - All errors are logged to console for debugging
+
+# Bug Fix Summary: Missing Dependency (Flask-SQLAlchemy)
+
+## Problem
+The application crashed on startup with `ModuleNotFoundError: No module named 'flask_sqlalchemy'`, despite the package being listed in `requirements.txt`.
+
+## Cause
+The Docker image was outdated and did not contain the recently added `flask-sqlalchemy` dependency. The container was running an older version of the image.
+
+## Solution
+Triggered a rebuild of the Docker image to ensure all dependencies in `requirements.txt` are installed.
+
+## Action Taken
+Ran `docker-compose up --build -d` to rebuild the image and restart the service.

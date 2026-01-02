@@ -1,9 +1,7 @@
 services:
   speech-emotion-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: speech-emotion-app:latest
+    image: 2000030906/speech-emotion-app:latest
+    command: sh -c "pip install flask-sqlalchemy && gunicorn --workers=2 --timeout=300 --bind=0.0.0.0:50005 app:app"
     container_name: speech-emotion-app
     ports:
       - "50005:50005"
