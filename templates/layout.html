@@ -10,6 +10,7 @@
 	<style>
 		html {
 			font-size: 1rem;
+			scroll-behavior: smooth;
 		}
 
 		@media (min-width: 576px) {
@@ -146,19 +147,27 @@
 			</button>
 			<div class="collapse navbar-collapse" id="navbarResponsive">
 				<ul class="navbar-nav ml-auto">
-					<li class="nav-item active">
+					<li class="nav-item {% if request.endpoint == 'home' %}active{% endif %}">
 						<a class="nav-link" href="{{ url_for('home') }}">HOME
-							<span class="sr-only">(current)</span>
+							{% if request.endpoint == 'home' %}<span class="sr-only">(current)</span>{% endif %}
 						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('about') }}">ABOUT</a>
+					<li class="nav-item {% if request.endpoint == 'about' %}active{% endif %}">
+						<a class="nav-link" href="{{ url_for('about') }}">ABOUT
+							{% if request.endpoint == 'about' %}<span class="sr-only">(current)</span>{% endif %}
+						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('home') }}#prediction-form">PREDICT</a>
+					<li
+						class="nav-item {% if request.endpoint == 'prediction_page' or request.endpoint == 'predict' %}active{% endif %}">
+						<a class="nav-link" href="{{ url_for('prediction_page') }}">PREDICT
+							{% if request.endpoint == 'prediction_page' or request.endpoint == 'predict' %}<span
+								class="sr-only">(current)</span>{% endif %}
+						</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="{{ url_for('analyze') }}">ANALYZED</a>
+					<li class="nav-item {% if request.endpoint == 'analyze' %}active{% endif %}">
+						<a class="nav-link" href="{{ url_for('analyze') }}">ANALYZED
+							{% if request.endpoint == 'analyze' %}<span class="sr-only">(current)</span>{% endif %}
+						</a>
 					</li>
 
 					<li class="nav-item">
@@ -238,6 +247,7 @@
 		integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
 		crossorigin="anonymous"></script>
 	<script src="https://kit.fontawesome.com/c67f44dd52.js" crossorigin="anonymous"></script>
+
 
 </body>
 

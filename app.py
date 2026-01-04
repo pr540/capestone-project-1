@@ -14,7 +14,8 @@ app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url
 app.config.update(
     MAX_CONTENT_LENGTH=100 * 1024 * 1024 * 1024,
     SQLALCHEMY_DATABASE_URI='sqlite:///emotions.db',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    TEMPLATES_AUTO_RELOAD=True
 )
 db.init_app(app)
 with app.app_context(): db.create_all()
@@ -31,6 +32,8 @@ def home(): return render_template('index.html', title="Home")
 @app.route('/about')
 def about(): return render_template('about.html', title="About")
 
+@app.route('/prediction_page')
+def prediction_page(): return render_template('prediction.html', title="Predict")
 @app.route('/analyze')
 def analyze():
     preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).all()
