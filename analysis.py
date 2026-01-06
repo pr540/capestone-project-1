@@ -25,7 +25,8 @@ def get_model():
     global model
     if model is None:
         try:
-            with open('mlp.pkl', 'rb') as f:
+            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp.pkl')
+            with open(model_path, 'rb') as f:
                 model = pickle.load(f)
         except Exception as e:
             print(f"[ERROR] Loading model failed: {e}")
