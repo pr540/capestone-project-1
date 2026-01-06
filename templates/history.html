@@ -112,11 +112,13 @@
                                     </strong>
                                 </td>
                                 <td>
+                                    {% set percent = (prediction.confidence|default(0)|float * 100)|round(1) %}
+                                    {% set bar_style = 'style="width: ' ~ percent ~ '%;"' %}
                                     <div class="progress" style="height: 10px; margin-top: 5px;">
-                                        <div class="progress-bar bg-success" role="progressbar"
-                                            style="width: {{ prediction.confidence * 100 }}%"></div>
+                                        <div class="progress-bar bg-success" role="progressbar" {{ bar_style|safe }}>
+                                        </div>
                                     </div>
-                                    <small>{{ (prediction.confidence * 100)|round(1) }}%</small>
+                                    <small>{{ percent }}%</small>
                                 </td>
                             </tr>
                             {% else %}
@@ -131,8 +133,8 @@
         </div>
 
         <div class="text-center">
-            <a href="{{ url_for('home') }}" class="btn btn-primary px-5 py-2"
-                style="border-radius: 50px; background: #4B0082; border: none;">
+            <a href="{{ url_for('home') }}" class="btn btn-primary px-5 py-2" style=<"border-radius: 50px; background:
+                #4B0082; border: none;">
                 <i class="fa fa-plus"></i> New Analysis
             </a>
         </div>
