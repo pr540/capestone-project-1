@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: speech-emotion-app
-          image: speech-emotion-app:latest
-          imagePullPolicy: Never
+          image: 2000030906/speech-emotion-app:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 50005
           resources:
