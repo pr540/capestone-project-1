@@ -11,9 +11,17 @@ from analysis import analyze_video_faces, predict_audio_emotion, warmup
 # App Setup
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url_path='/static')
+
+# Use /tmp for SQLite on Vercel since the root is read-only
+if os.environ.get('VERCEL'):
+    db_path = '/tmp/emotions.db'
+else:
+    db_path = os.path.join(BASE_DIR, 'instance', 'emotions.db')
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
 app.config.update(
     MAX_CONTENT_LENGTH=100 * 1024 * 1024 * 1024,
-    SQLALCHEMY_DATABASE_URI='sqlite:///emotions.db',
+    SQLALCHEMY_DATABASE_URI=f'sqlite:///{db_path}',
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     TEMPLATES_AUTO_RELOAD=True
 )
