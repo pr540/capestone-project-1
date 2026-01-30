@@ -1,20 +1,14 @@
 flask
-# pyaudio  # Removed for Vercel compatibility
-numpy>=1.26.0
+numpy>=1.23.5,<2.0.0
 librosa
 scikit-learn==1.3.0
-pandas
-seaborn
-matplotlib
-tqdm
 joblib
-moviepy>=1.0.3
 imageio-ffmpeg
-pydub
 gunicorn
-soxr>=0.3.0
 resampy
-tensorflow-cpu>=2.16.0
+tensorflow-cpu==2.15.0
 opencv-python-headless
 fer>=22.5.1
 flask-sqlalchemy
+werkzeug>=1.0.1
+uvicorn>=0.24

@@ -2,7 +2,6 @@ import os
 import subprocess
 import tempfile
 import imageio_ffmpeg
-from moviepy.editor import VideoFileClip
 
 ALLOWED_AUDIO_EXTENSIONS = {'wav', 'mp3', 'ogg', 'flac', 'm4a'}
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
@@ -39,12 +38,4 @@ def extract_audio_from_video(video_path):
     except Exception as e:
         if dest_path and os.path.exists(dest_path):
             os.unlink(dest_path)
-        print(f"[WARNING] ffmpeg failed, falling back to moviepy: {e}")
-        try:
-            video = VideoFileClip(video_path)
-            sub = video.subclip(0, min(5, video.duration))
-            sub.audio.write_audiofile(temp_audio_path, logger=None)
-            video.close()
-            return temp_audio_path
-        except Exception as e2:
-            raise Exception(f"Error extracting audio: {str(e2)}")
+        raise Exception(f"Error extracting audio: {str(e)}")
