@@ -406,7 +406,15 @@ li>a:only-child:after {
 	-moz-background-size: cover;
 }
 
+@keyframes dynamicBanner {
+	0% { background-image: url(../images/111.jpg); }
+	33% { background-image: url(../images/2.jpeg); }
+	66% { background-image: url(../images/5.jpg); }
+	100% { background-image: url(../images/111.jpg); }
+}
+
 .banner-top1 {
+	animation: dynamicBanner 20s infinite ease-in-out;
 	background: url(../images/111.jpg) no-repeat center;
 	background-size: cover;
 	-webkit-background-size: cover;
