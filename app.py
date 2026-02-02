@@ -97,23 +97,27 @@ def predict():
             else:
                 # Weighted Fusion / Priority
                 if vis_emo:
-                    # If audio says PS with extreme confidence, check if visual is neutral/different
-                    # We dampen audio if it's too sure of PS on a short/noisy clip
-                    if audio_emo == "Pleasant Surprise" and au_conf > 0.9:
-                        # Hybrid scores: give a boost to visual if it detected anything coherent
-                        if vis_conf > 0.3:
-                            final_emo, final_conf, note = vis_emo, vis_conf, "Visual signal prioritized over biased audio"
+                    # Trap Emotions: 'disgust' and 'Pleasant Surprise' are common model biases on noisy data
+                    trap_emotions = ["disgust", "Pleasant Surprise"]
+                    
+                    if audio_emo in trap_emotions and au_conf > 0.8:
+                        # If audio is stuck in a trap, but visual actually found a face with an emotion
+                        if vis_emo != "neutral" and vis_conf > 0.3:
+                            final_emo, final_conf, note = vis_emo, vis_conf, f"Visual ({vis_emo}) overrides biased audio ({audio_emo})"
+                        elif vis_emo == "neutral" and vis_conf > 0.5:
+                            # If visual is confident it's neutral, trust it over a 'disgust' audio trap
+                            final_emo, final_conf, note = "neutral", (vis_conf + au_conf)/2, "Visual neutral overrides audio bias"
                         else:
-                            final_emo, final_conf, note = "neutral", 0.8, "Ambiguous signals: defaulting to neutral"
-                    elif vis_conf > au_conf:
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Based on visual evidence"
+                            final_emo, final_conf, note = audio_emo, au_conf, "Audio prioritized (weak visual signal)"
+                    elif vis_conf > au_conf + 0.15:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Based on higher visual confidence"
                     else:
                         final_emo, final_conf, note = audio_emo, au_conf, "Based on audio evidence"
                 else:
-                    # If audio is very high PS, it might be a model bias; if so, cap it
-                    if audio_emo == "Pleasant Surprise" and au_conf > 0.98:
-                         final_conf = 0.85 # Reduce artificial certainty
-                    final_emo, final_conf, note = audio_emo, final_conf if 'final_conf' in locals() else au_conf, "Audio-only analysis"
+                    # Audio-only
+                    final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
+                    if audio_emo == "disgust" and au_conf > 0.99:
+                         note += " (Potential bias detected)"
         # Save to DB
         res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
                                visual_emotion=vis_emo or "N/A", final_emotion=final_emo, confidence=final_conf)

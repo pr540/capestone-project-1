@@ -83,20 +83,23 @@ def mfcc_from_db(db_mel, n_mfcc=40):
     return db_mel @ dct_matrix.T
 
 def extract_features_combined(y, sr):
-    # Normalize signal to peak 1.0 (standard for librosa.load)
-    if np.max(np.abs(y)) > 1e-10:
-        y = y / np.max(np.abs(y))
-    
     if len(y) < 2048:
         y = np.pad(y, (0, 2048 - len(y)))
+    
+    # Normalize signal to standard float range [-1, 1]
+    if np.max(np.abs(y)) > 1e-8:
+        y = y / np.max(np.abs(y))
     
     # STFT and Mel
     s = stft(y)
     m = melspectrogram(s, sr=sr)
     
-    # Use dB conversion with 1.0 reference (librosa default)
-    # This matches the model's trained range better
-    db_m = 10.0 * np.log10(np.maximum(m, 1e-10))
+    # Use dB conversion with dynamic reference (peak)
+    # This prevents absolute volume from biasing the results
+    ref = np.max(m)
+    db_m = 10.0 * np.log10(np.maximum(m, 1e-10) / (ref + 1e-10))
+    # Standard speech range is usually -80dB to 0dB relative to peak
+    db_m = np.clip(db_m, -80, 0)
     
     chr_feat = np.mean(chroma_stft(s, sr=sr), axis=0)
     mfcc_feat = np.mean(mfcc_from_db(db_m), axis=0)
