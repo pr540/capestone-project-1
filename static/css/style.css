@@ -1934,15 +1934,15 @@ a.move-top {
 /*-- //Responsive design --*/
 /*-- About Page Dynamic --*/
 .about-section {
-	background: url(../images/img.png) no-repeat center;
-	background-size: cover;
-	background-attachment: fixed;
+	background: url('https://images.unsplash.com/photo-1516116216624-53e697fedbea?q=80&w=1920&auto=format&fit=crop') no-repeat center;
+		background-size: cover;
+		background-attachment: fixed;
 }
 
 .overlay-about {
-	background: rgba(0, 0, 0, 0.7);
-	min-height: 100vh;
-	padding: 100px 0;
+	background: rgba(0, 0, 0, 0.65);
+		min-height: 100vh;
+		padding: 100px 0;
 }
 
 .about-card {
@@ -1964,31 +1964,31 @@ a.move-top {
 
 /*-- Predict Page Dynamic --*/
 .predict-section {
-	background: url('https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=1920&auto=format&fit=crop') no-repeat center;
-	background-size: cover;
-	background-attachment: fixed;
+	background: url('https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=1920&auto=format&fit=crop') no-repeat center;
+		background-size: cover;
+		background-attachment: fixed;
 }
 
 .overlay-predict {
-	background: rgba(0, 0, 0, 0.75);
-	min-height: 100vh;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 80px 0;
+	background: rgba(0, 0, 0, 0.7);
+		min-height: 100vh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 80px 0;
 }
 
 /*-- History Page Dynamic --*/
 .history-section {
-	background: url('https://images.unsplash.com/photo-1551288049-bbbda546697a?q=80&w=1920&auto=format&fit=crop') no-repeat center;
-	background-size: cover;
-	background-attachment: fixed;
+	background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop') no-repeat center;
+		background-size: cover;
+		background-attachment: fixed;
 }
 
 .overlay-history {
-	background: rgba(0, 0, 0, 0.82);
-	min-height: 100vh;
-	padding: 100px 0;
+	background: rgba(0, 0, 0, 0.75);
+		min-height: 100vh;
+		padding: 100px 0;
 }
 
 .history-card {
