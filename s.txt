@@ -1,0 +1,47 @@
+CORE CHALLENGES & ARCHITECTURAL LOGIC (s.txt)
+================================================
+
+1. THE VERCEL 250MB WALL (MAJOR BLOCKER)
+----------------------------------------
+* Issue: Original project used Librosa, TensorFlow, SciPy, and Scikit-Learn. Total bundle size was ~700MB. Vercel limit is 250MB.
+* Logic Solution: 
+    - Removed all heavy libraries.
+    - RE-CODED feature extraction from scratch using pure NumPy.
+    - RE-CODED the MLP model runner using pure NumPy matrix math.
+    - Result: Bundle size dropped to ~140MB without losing accuracy.
+
+2. NUMPY MFCC & CHROMA REPLICATION
+----------------------------------
+* Issue: Standard NumPy STFT doesn't match Librosa's default "reflect padding" and "center-aligned" windows, causing 20% accuracy drop.
+* Logic Solution:
+    - Implemented custom padding: `np.pad(y, n_fft // 2, mode='reflect')`.
+    - Implemented Slaney-style Mel-normalization (Mel-filterbanks matching Librosa precisely).
+    - Custom DCT-II with orthogonality for MFCC.
+
+3. DYNAMIC UI & ASSET CACHING
+-----------------------------
+* Issue: Vercel was caching /static assets or stripping them, causing the "skeleton UI" bug.
+* Logic Solution:
+    - Modified vercel.json to explicitly exclude /static/ from serverless rewrites.
+    - Implemented Glassmorphism CSS with backdrop-filters for the new "Dynamic Look".
+
+4. THE "P" BUG (DATA TRUNCATION)
+--------------------------------
+* Issue: The Prediction Result showed "P" instead of "Pleasant Surprise" because of a NumPy string indexing error `[0]`.
+* Logic Solution:
+    - Updated `mlp_numpy.py` to return full string objects.
+    - Added a dictionary mapping to convert internal codes (like 'ps') to user-friendly strings.
+
+5. VIDEO HEURISTIC (NO HEAVY AI)
+--------------------------------
+* Issue: Heavy Video AI (FER/DeepFace) was too large for the environment.
+* Logic Solution:
+    - Used OpenCV Haar Cascades (Face, Smile, Eyes).
+    - Logic: If(smiles > threshold) -> Happy; If(eyes_wide) -> Surprise; else Neutral.
+    - Weighted Fusion: Result = (Audio_Conf * 0.7) + (Video_Conf * 0.3).
+
+6. DYNAMIC BACKGROUND ANIMATIONS
+--------------------------------
+* Logic Solution:
+    - Created CSS @keyframes for cross-fading banner images (111.jpg -> 2.jpeg -> 5.jpg).
+    - Set `min-height: 100vh` to ensure all pages are "Full-Fit".
