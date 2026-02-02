@@ -1,4 +1,6 @@
 import os
+import subprocess
+import imageio_ffmpeg
 import tempfile
 import numpy as np
 try:
@@ -62,7 +64,6 @@ def predict():
         file.save(tmp.name)
         tmp_path = tmp.name
 
-
     try:
         vis_emo, vis_conf = None, 0.0
         audio_path = tmp_path
@@ -70,13 +71,21 @@ def predict():
             vis_emo, vis_conf = analyze_video_faces(tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        if librosa is None:
-             audio_emo, au_conf, note = "Detection Unavailable", 0.0, "Audio engine missing in serverless environment"
+        # Load audio using ffmpeg to avoid librosa dependency
+        sr = 22050
+        cmd = [
+            imageio_ffmpeg.get_ffmpeg_exe(), '-i', audio_path,
+            '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        out, _ = process.communicate()
+        X = np.frombuffer(out, dtype=np.float32)
+        
+        if len(X) == 0:
+             audio_emo, au_conf, note = "Silent/Error", 0.0, "Could not extract audio"
              final_emo, final_conf = vis_emo or "N/A", vis_conf
         else:
-            X, sr = librosa.load(audio_path, res_type='kaiser_fast', duration=5)
-            rms = np.mean(librosa.feature.rms(y=X))
-            
+            rms = np.sqrt(np.mean(X**2))
             if rms < 0.001 and vis_conf > 0.4:
                 final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio silent)"
                 audio_emo = "Silent"
