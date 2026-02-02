@@ -1,7 +1,10 @@
 import os
 import pickle
 import numpy as np
-import librosa
+try:
+    import librosa
+except ImportError:
+    librosa = None
 try:
     import cv2
 except ImportError:
@@ -66,6 +69,8 @@ def analyze_video_faces(video_path):
     return dominant, total_scores[dominant] / total_sum if total_sum > 0 else 0.0
 
 def predict_audio_emotion(audio_data, sr):
+    if librosa is None:
+        return "neutral", 0.0, [0]*len(emotions)
     m = get_model()
     if not m: return "neutral", 0.0, [0]*len(emotions)
     
@@ -80,6 +85,9 @@ def predict_audio_emotion(audio_data, sr):
     return pred, np.max(probs), probs
 
 def warmup():
+    if librosa is None:
+        print("[INFO] Warmup skipped (librosa missing)")
+        return
     print("[INFO] Warming up...")
     y = np.random.randn(22050).astype(np.float32)
     librosa.feature.mfcc(y=y, sr=22050, n_mfcc=40)

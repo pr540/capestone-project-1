@@ -59,6 +59,9 @@ def predict():
         file.save(tmp.name)
         tmp_path = tmp.name
 
+        if vis_emo and ((vis_emo in ['happy','surprise','angry'] and vis_conf > 0.4) or vis_conf > au_conf + 0.1):
+            final_emo, final_conf, note = vis_emo, vis_conf, f"Priority given to facial: {vis_emo}"
+
     try:
         vis_emo, vis_conf = None, 0.0
         audio_path = tmp_path
@@ -66,17 +69,21 @@ def predict():
             vis_emo, vis_conf = analyze_video_faces(tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        X, sr = librosa.load(audio_path, res_type='kaiser_fast', duration=5)
-        rms = np.mean(librosa.feature.rms(y=X))
-        
-        if rms < 0.001 and vis_conf > 0.4:
-            final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio silent)"
-            audio_emo = "Silent"
+        if librosa is None:
+             audio_emo, au_conf, note = "Detection Unavailable", 0.0, "Audio engine missing in serverless environment"
+             final_emo, final_conf = vis_emo or "N/A", vis_conf
         else:
-            audio_emo, au_conf, _ = predict_audio_emotion(X, sr)
-            final_emo, final_conf, note = audio_emo, au_conf, None
-            if vis_emo and ((vis_emo in ['happy','surprise','angry'] and vis_conf > 0.4) or vis_conf > au_conf + 0.1):
-                final_emo, final_conf, note = vis_emo, vis_conf, f"Priority given to facial: {vis_emo}"
+            X, sr = librosa.load(audio_path, res_type='kaiser_fast', duration=5)
+            rms = np.mean(librosa.feature.rms(y=X))
+            
+            if rms < 0.001 and vis_conf > 0.4:
+                final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio silent)"
+                audio_emo = "Silent"
+            else:
+                audio_emo, au_conf, _ = predict_audio_emotion(X, sr)
+                final_emo, final_conf, note = audio_emo, au_conf, None
+                if vis_emo and ((vis_emo in ['happy','surprise','angry'] and vis_conf > 0.4) or vis_conf > au_conf + 0.1):
+                    final_emo, final_conf, note = vis_emo, vis_conf, f"Priority given to facial: {vis_emo}"
 
         # Save to DB
         res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,

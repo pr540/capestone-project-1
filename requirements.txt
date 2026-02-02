@@ -1,6 +1,5 @@
 flask
 numpy>=1.26.0
-librosa
 imageio-ffmpeg
 flask-sqlalchemy
 werkzeug>=3.0.1

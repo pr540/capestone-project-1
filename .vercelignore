@@ -31,12 +31,10 @@ warmup_logs.txt
 inspect_model.py
 test_mlp.py
 mlp.pkl
-static/images/farm_background.jpg
-static/images/crop_background.jpg
-static/images/111.jpg
-static/images/13.jpg
-static/images/2.jpeg
-static/images/5.jpg
-static/images/img.png
-static/images/img_1.png
-static/styles/Neural_network.jpg
+# Exclude entire static and templates to test size, or just large images
+static/images/
+static/styles/
+static/scripts/
+static/css/
+static/js/
+# Keep only essential images if absolutely needed, otherwise ignore all
