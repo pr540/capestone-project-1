@@ -1,6 +1,7 @@
 [project]
 name = "capestone-project-1234"
 version = "0.1.0"
+requires-python = ">=3.10"
 dependencies = [
     "flask",
     "numpy>=1.26.0",
