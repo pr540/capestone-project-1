@@ -31,6 +31,13 @@ class NumpyMLP:
 
     def predict(self, X):
         probs = self.predict_proba(X)
-        # argmax returns an array of indices. We take the first one since we handle 1 sample.
         idx = np.argmax(probs, axis=1)[0]
-        return str(self.classes[idx])
+        label = self.classes[idx]
+        # Handle numpy string types and ensure full string return
+        if isinstance(label, (np.ndarray, np.generic)):
+            label = label.item()
+        label = str(label)
+        # Map internal 'ps' to user-friendly name
+        if label == 'ps':
+            return 'Pleasant Surprise'
+        return label

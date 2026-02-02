@@ -107,7 +107,7 @@
     <div class="emotion-emoji">😐</div>
     <div class="emotion-name">Neutral</div>
     <div class="emotion-description">The speaker appears to be expressing a neutral emotion</div>
-    {% elif predicted_emotion == 'ps' %}
+    {% elif predicted_emotion in ['ps', 'Pleasant Surprise'] %}
     <div class="emotion-emoji">🤩</div>
     <div class="emotion-name">Pleasant Surprise</div>
     <div class="emotion-description">The speaker appears to be expressing pleasant surprise</div>
@@ -124,6 +124,25 @@
     <div class="emotion-name">{{ predicted_emotion }}</div>
     <div class="emotion-description">Emotion detected</div>
     {% endif %}
+
+    <div class="mt-4 p-3 bg-light border rounded text-left">
+      <h5 class="text-primary mb-2"><i class="fas fa-microchip"></i> Analysis Path</h5>
+      <ul class="list-unstyled mb-0" style="font-size: 0.9rem; color: #555;">
+        <li class="mb-1"><i class="fas fa-check-circle text-success"></i> <strong>Audio:</strong> Processed via 180-feature
+          NumPy extraction (Chromas, MFCCs, Mel-spec)</li>
+        {% if visual_emotion %}
+        <li class="mb-1"><i class="fas fa-check-circle text-success"></i> <strong>Video:</strong> Analyzed via Haar Cascade
+          heuristic sampling</li>
+        <li class="mb-1"><i class="fas fa-info-circle text-info"></i> <strong>Fusion:</strong> Combining Audio ({{
+          audio_emotion }}) and Visual ({{ visual_emotion }}) signals</li>
+        {% else %}
+        <li class="mb-1"><i class="fas fa-info-circle text-info"></i> <strong>Signal:</strong> Standalone Audio signal
+          analysis</li>
+        {% endif %}
+        <li><i class="fas fa-arrow-right text-primary"></i> <strong>Final Output:</strong> Weighted decision logic
+          determined <strong>{{ predicted_emotion }}</strong></li>
+      </ul>
+    </div>
 
     {% if note %}
     <div style="color: #d9534f; margin-top: 10px; font-weight: bold;">
