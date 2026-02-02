@@ -2,8 +2,8 @@
   "version": 2,
   "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "app.py"
+      "source": "/(.*)",
+      "destination": "app.py"
     }
   ]
 }
