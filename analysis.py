@@ -13,7 +13,7 @@ except ImportError:
 
 detector = {}
 model = None
-emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
+emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
 
 def get_detector():
     global detector
@@ -57,9 +57,9 @@ def analyze_video_faces(video_path):
         for (x, y, w, h) in faces:
             roi_gray = gray[y:y+h, x:x+w]
             
-            # Simple heuristic detection
-            smiles = dets['smile'].detectMultiScale(roi_gray, 1.8, 20)
-            eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 10)
+            # Improved heuristic detection
+            smiles = dets['smile'].detectMultiScale(roi_gray, 1.7, 12)
+            eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 8)
             
             if len(smiles) > 0:
                 stats['happy'] += 1
@@ -83,7 +83,8 @@ def predict_audio_emotion(audio_data, sr):
     try:
         features = extract_features_combined(audio_data, sr).reshape(1, -1)
         probs = m.predict_proba(features)[0]
-        pred = m.predict(features)[0]
+        # Fixed: m.predict already returns the string label, indexing [0] was truncating it
+        pred = m.predict(features)
         return pred, np.max(probs), probs
     except Exception as e:
         print(f"Feature extraction failed: {e}")
