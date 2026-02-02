@@ -1,7 +1,10 @@
 import os
 import tempfile
 import numpy as np
-import librosa
+try:
+    import librosa
+except ImportError:
+    librosa = None
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from database import db, PredictionResult
@@ -59,8 +62,6 @@ def predict():
         file.save(tmp.name)
         tmp_path = tmp.name
 
-        if vis_emo and ((vis_emo in ['happy','surprise','angry'] and vis_conf > 0.4) or vis_conf > au_conf + 0.1):
-            final_emo, final_conf, note = vis_emo, vis_conf, f"Priority given to facial: {vis_emo}"
 
     try:
         vis_emo, vis_conf = None, 0.0
