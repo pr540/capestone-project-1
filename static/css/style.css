@@ -549,8 +549,21 @@ p.about-text {
 /*-- //about --*/
 
 /*-- core grids --*/
+.core-value {
+	background: url(../images/5.jpg) no-repeat center;
+	background-size: cover;
+	background-attachment: fixed;
+}
+
+.overlay-project {
+	background: rgba(0, 0, 0, 0.7);
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+}
 .core-grids p {
 	letter-spacing: 1px;
+	color: #ddd;
 }
 
 .core-right h3 {
@@ -560,7 +573,6 @@ p.about-text {
 	font-weight: 600;
 	text-transform: uppercase;
 }
-
 /*-- //core grids --*/
 
 /*-- works --*/
@@ -641,9 +653,21 @@ p.about-text {
 /*-- //bg --*/
 
 /*-- blog info --*/
+.blog {
+	background: url(../images/2.jpeg) no-repeat center;
+	background-size: cover;
+	background-attachment: fixed;
+}
+
+.overlay-feature {
+	background: rgba(0, 0, 0, 0.7);
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+}
 
 .blog-grids {
-	margin-bottom: 200px;
+	margin-bottom: 50px;
 }
 
 .blog-left,
@@ -652,20 +676,36 @@ p.about-text {
 	position: relative;
 }
 
+.feature-card {
+	background: rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	border-radius: 15px;
+	padding: 20px;
+	transition: transform 0.3s ease;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	height: 100%;
+}
+
+.feature-card:hover {
+	transform: translateY(-10px);
+	background: rgba(255, 255, 255, 0.15);
+}
 .blog-info {
-	background: #fff;
-	padding: 30px;
-	margin-top: -2em;
-	position: absolute;
-	left: 6%;
-	right: 6%;
-	top: 200px;
-	box-shadow: 0 3px 5px -1px rgba(0, 0, 0, 0.08), 0 5px 8px 0 rgba(0, 0, 0, 0.12), 0 1px 14px 0 rgba(0, 0, 0, 0.06);
+	background: transparent;
+		padding: 20px 0;
+		margin-top: 0;
+		position: relative;
+		left: 0;
+		right: 0;
+		top: 0;
+		box-shadow: none;
+		color: #fff;
 }
 
 .blog-info p {
 	letter-spacing: 1px;
 	line-height: 20px;
+	color: #ccc;
 }
 
 .blog-info h4 {
@@ -674,12 +714,12 @@ p.about-text {
 	letter-spacing: 2px;
 	font-weight: 600;
 	text-transform: uppercase;
+	color: #fff;
 }
 
 .blog-info h4 span.fa {
-	color: #009f4d;
+	color: #e8cd30;
 }
-
 /*-- //blog info --*/
 
 
