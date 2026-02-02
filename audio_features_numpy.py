@@ -70,15 +70,36 @@ def chroma_stft(stft_output, sr=22050, n_chroma=12):
     norm = np.linalg.norm(chroma, axis=1, keepdims=True)
     return chroma / (norm + 1e-10)
 
+def mfcc_from_db(db_mel, n_mfcc=40):
+    # DCT-II with ortho normalization
+    n_mels = db_mel.shape[1]
+    n = np.arange(n_mels)
+    k = np.arange(n_mfcc)[:, None]
+    dct_matrix = np.cos(np.pi * k * (n + 0.5) / n_mels)
+    # Ortho normalization factors
+    dct_matrix[0] *= np.sqrt(1.0 / n_mels)
+    dct_matrix[1:] *= np.sqrt(2.0 / n_mels)
+    
+    return db_mel @ dct_matrix.T
+
 def extract_features_combined(y, sr):
+    # Normalize signal to peak 1.0 (standard for librosa.load)
+    if np.max(np.abs(y)) > 1e-10:
+        y = y / np.max(np.abs(y))
+    
     if len(y) < 2048:
         y = np.pad(y, (0, 2048 - len(y)))
     
+    # STFT and Mel
     s = stft(y)
     m = melspectrogram(s, sr=sr)
     
+    # Use dB conversion with 1.0 reference (librosa default)
+    # This matches the model's trained range better
+    db_m = 10.0 * np.log10(np.maximum(m, 1e-10))
+    
     chr_feat = np.mean(chroma_stft(s, sr=sr), axis=0)
-    mfcc_feat = np.mean(mfcc(m), axis=0)
-    mel_feat = np.mean(10.0 * np.log10(np.maximum(m, 1e-10)), axis=0)
+    mfcc_feat = np.mean(mfcc_from_db(db_m), axis=0)
+    mel_feat = np.mean(db_m, axis=0)
     
     return np.hstack([chr_feat, mfcc_feat, mel_feat])

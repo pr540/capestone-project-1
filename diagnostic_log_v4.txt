@@ -1,0 +1,18 @@
+--- Zero ---
+Prediction: Pleasant Surprise
+Max Prob: 1.0000
+Probs: [0. 0. 0. 0. 0. 1. 0.]
+Feature mean: -61.9172, std: 72.5843
+Feature min/max: -905.0967 / 0.0000
+--- Noise ---
+Prediction: fear
+Max Prob: 1.0000
+Probs: [0. 0. 1. 0. 0. 0. 0.]
+Feature mean: 10.1146, std: 11.9391
+Feature min/max: -5.5950 / 148.2853
+--- Sine 440Hz ---
+Prediction: Pleasant Surprise
+Max Prob: 1.0000
+Probs: [0. 0. 0. 0. 0. 1. 0.]
+Feature mean: -51.5598, std: 65.9724
+Feature min/max: -756.3165 / 149.0821

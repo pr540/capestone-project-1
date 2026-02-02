@@ -86,15 +86,26 @@ def predict():
              final_emo, final_conf = vis_emo or "N/A", vis_conf
         else:
             rms = np.sqrt(np.mean(X**2))
-            if rms < 0.001 and vis_conf > 0.4:
-                final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio silent)"
-                audio_emo = "Silent"
+            audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
+            
+            # Logic to prevent 'Pleasant Surprise' bias on quiet/ambient audio
+            if rms < 0.01:
+                if vis_emo:
+                    final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio too quiet)"
+                else:
+                    final_emo, final_conf, note = "neutral", 0.9, "Silent audio detected"
             else:
-                audio_emo, au_conf, _ = predict_audio_emotion(X, sr)
-                final_emo, final_conf, note = audio_emo, au_conf, None
-                if vis_emo and ((vis_emo in ['happy','surprise','angry'] and vis_conf > 0.4) or vis_conf > au_conf + 0.1):
-                    final_emo, final_conf, note = vis_emo, vis_conf, f"Priority given to facial: {vis_emo}"
-
+                # Weighted Fusion / Priority
+                if vis_emo:
+                    # If audio says PS with 100% confidence but facial says something else
+                    if audio_emo == "Pleasant Surprise" and au_conf > 0.99 and vis_emo != "neutral" and vis_conf > 0.4:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual overrides over-confident audio"
+                    elif vis_conf > au_conf + 0.1:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Based on higher visual confidence"
+                    else:
+                        final_emo, final_conf, note = audio_emo, au_conf, "Based on higher audio confidence"
+                else:
+                    final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
         # Save to DB
         res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
                                visual_emotion=vis_emo or "N/A", final_emotion=final_emo, confidence=final_conf)
