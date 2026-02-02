@@ -17,8 +17,15 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = []
 py-modules = ["app", "analysis", "database", "utils", "mlp_model", "mlp_prediction"]
+
+[tool.uv]
+package = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = []
+exclude = ["*"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
