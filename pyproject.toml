@@ -11,12 +11,9 @@ dependencies = [
     "imageio-ffmpeg",
     "gunicorn",
     "resampy",
-    "opencv-python-headless",
     "flask-sqlalchemy",
     "werkzeug>=3.0.1",
-    "uvicorn>=0.24",
-    "fer",
-    "tensorflow-cpu>=2.16.0"
+    "uvicorn>=0.24"
 ]
 
 [tool.setuptools]

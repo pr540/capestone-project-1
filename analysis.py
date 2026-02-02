@@ -1,8 +1,12 @@
 import os
-import cv2
 import pickle
 import numpy as np
 import librosa
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
 try:
     from fer import FER
 except ImportError:

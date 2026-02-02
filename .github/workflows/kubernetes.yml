@@ -18,13 +18,15 @@ jobs:
             # Note: You must add the KUBE_CONFIG secret to your GitHub repository for this to work.
             # KUBE_CONFIG should contain the base64 encoded kubeconfig file content.
             - name: Deploy to Kubernetes Cluster
+              env:
+                KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
               run: |
-                  if [ -z "${{ secrets.KUBE_CONFIG }}" ]; then
-                    echo "::warning::KUBE_CONFIG secret is not set. Skipping actual deployment commands."
-                    echo "To enable deployment, add a 'KUBE_CONFIG' secret containing your cluster configuration."
-                  else
-                    echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
-                    export KUBECONFIG=./kubeconfig
-                    kubectl apply -f deployment/deployment.yaml
-                    kubectl apply -f deployment/service.yaml
-                  fi
+                if [ -z "$KUBE_CONFIG" ]; then
+                  echo "::warning::KUBE_CONFIG secret is not set. Skipping actual deployment commands."
+                  echo "To enable deployment, add a 'KUBE_CONFIG' secret containing your cluster configuration."
+                else
+                  echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+                  export KUBECONFIG=./kubeconfig
+                  kubectl apply -f deployment/deployment.yaml
+                  kubectl apply -f deployment/service.yaml
+                fi
