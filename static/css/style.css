@@ -1934,7 +1934,7 @@ a.move-top {
 /*-- //Responsive design --*/
 /*-- About Page Dynamic --*/
 .about-section {
-	background: url(../images/111.jpg) no-repeat center;
+	background: url(../images/img.png) no-repeat center;
 	background-size: cover;
 	background-attachment: fixed;
 }
@@ -1964,7 +1964,7 @@ a.move-top {
 
 /*-- Predict Page Dynamic --*/
 .predict-section {
-	background: url(../images/2.jpeg) no-repeat center;
+	background: url('https://images.unsplash.com/photo-1590602847861-f357a9332bbc?q=80&w=1920&auto=format&fit=crop') no-repeat center;
 	background-size: cover;
 	background-attachment: fixed;
 }
@@ -1980,7 +1980,7 @@ a.move-top {
 
 /*-- History Page Dynamic --*/
 .history-section {
-	background: url(../images/5.jpg) no-repeat center;
+	background: url('https://images.unsplash.com/photo-1551288049-bbbda546697a?q=80&w=1920&auto=format&fit=crop') no-repeat center;
 	background-size: cover;
 	background-attachment: fixed;
 }
