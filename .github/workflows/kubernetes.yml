@@ -19,7 +19,7 @@ jobs:
             # KUBE_CONFIG should contain the base64 encoded kubeconfig file content.
             - name: Deploy to Kubernetes Cluster
               env:
-                KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+                KUBE_CONFIG: ${{ secrets['KUBE_CONFIG'] }}
               run: |
                 if [ -z "$KUBE_CONFIG" ]; then
                   echo "::warning::KUBE_CONFIG secret is not set. Skipping actual deployment commands."
