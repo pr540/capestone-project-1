@@ -17,8 +17,9 @@ class NumpyMLP:
         return exp_x / np.sum(exp_x, axis=1, keepdims=True)
 
     def predict_proba(self, X):
-        # Scale
-        X = (X - self.mean) / self.scale
+        # Scale and clip to prevent network saturation
+        X = (X - self.mean) / (self.scale + 1e-8)
+        X = np.clip(X, -10, 10) 
         
         # Forward pass
         curr = X
