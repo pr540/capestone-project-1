@@ -1,0 +1,45 @@
+PROJECT ARCHITECTURE & WORKFLOW DIAGRAM
+==========================================
+
+[USER BROWSER]
+      |
+      | (POST /predict) -> File (MP4/WAV)
+      v
+[VERCEL SERVERLESS FUNCTION] (Flask App)
+      |
+      +--- [TEMP STORAGE] (NamedTemporaryFile)
+      |
+      +--- [AUDIO EXTRACTION] (FFMPEG Binary via subprocess)
+      |         |
+      |         v [Raw PCM Data]
+      |
+      +--- [FEATURE ENGINE] (audio_features_numpy.py)
+      |         |
+      |         |--- 1. Reflect Padding
+      |         |--- 2. STFT (Hanning Window)
+      |         |--- 3. Mel Filterbank (Slaney Normalization)
+      |         |--- 4. DCT-II (Ortho-Normalization)
+      |         v [180-dimensional Vector]
+      |
+      +--- [MLP PREDICTOR] (mlp_numpy.py)
+      |         |
+      |         |--- Weights: mlp_weights.npz
+      |         |--- Layers: Input -> Scaler -> Dense -> ReLU -> Softmax
+      |         v [Emotion Label]
+      |
+      +--- [VIDEO ENGINE] (analysis.py)
+      |         |
+      |         |--- OpenCV Haar Cascades (Face, Smile, Eyes)
+      |         |--- Heuristic Logic (Frames Sampling)
+      |         v [Visual Emotion Heuristic]
+      |
+      +--- [DATABASE] (SQLite on /tmp/emotions.db)
+      |
+      v
+[RESULT PAGE] (result.html with Analysis Path)
+
+
+DATA FLOW SUMMARY:
+1. Input -> 2. FFMPEG Audio Extraction -> 3. NumPy Feature Extraction -> 
+4. NumPy MLP Prediction -> 5. OpenCV Face/Smile Heuristic -> 6. Result Fusion -> 
+7. UI Render.
