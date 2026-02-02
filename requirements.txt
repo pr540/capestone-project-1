@@ -1,11 +1,6 @@
 flask
 numpy>=1.26.0
 librosa
-scikit-learn==1.3.0
-joblib
 imageio-ffmpeg
-gunicorn
-resampy
 flask-sqlalchemy
 werkzeug>=3.0.1
-uvicorn>=0.24

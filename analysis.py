@@ -15,6 +15,8 @@ except ImportError:
     except ImportError:
         FER = None
 
+from mlp_numpy import NumpyMLP
+
 detector = None
 model = None
 emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
@@ -22,16 +24,18 @@ emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 def get_detector():
     global detector
     if detector is None and FER:
-        detector = FER(mtcnn=False)
+        try:
+            detector = FER(mtcnn=False)
+        except Exception:
+            detector = None
     return detector
 
 def get_model():
     global model
     if model is None:
         try:
-            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp.pkl')
-            with open(model_path, 'rb') as f:
-                model = pickle.load(f)
+            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp_weights.npz')
+            model = NumpyMLP(model_path)
         except Exception as e:
             print(f"[ERROR] Loading model failed: {e}")
     return model
