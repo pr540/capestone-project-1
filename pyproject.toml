@@ -7,12 +7,13 @@ dependencies = [
     "numpy>=1.26.0",
     "imageio-ffmpeg",
     "flask-sqlalchemy",
-    "werkzeug>=3.0.1"
+    "werkzeug>=3.0.1",
+    "gunicorn"
 ]
 
 [tool.setuptools]
 packages = []
-py-modules = ["app", "analysis", "database", "utils", "mlp_model", "mlp_prediction"]
+py-modules = ["app", "analysis", "database", "utils", "mlp_model", "mlp_prediction", "mlp_numpy", "audio_features_numpy"]
 
 [tool.uv]
 package = false
