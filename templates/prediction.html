@@ -10,7 +10,7 @@
                 <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="file-input">
                 <div class="file-info text-light">
                     ✅ Supported formats: WAV, MP3, OGG, FLAC, M4A, MP4, AVI, MOV, MKV, WEBM<br>
-                    📊 Maximum file size: 100GB
+                    📊 Maximum file size: 4.5MB (Vercel limit)
                 </div>
                 <div id="file-size-display" class="file-size-display"></div>
                 <input type="submit" value="🎯 Predict Emotion" class="submit-btn">
@@ -27,13 +27,13 @@
 
             if (file) {
                 const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                const maxSizeMB = 100 * 1024; // 100GB
+                const maxSizeMB = 4.5; // Vercel limit
 
                 display.style.display = 'block';
 
                 if (sizeMB > maxSizeMB) {
                     display.style.color = 'red';
-                    display.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB / 1024}GB`;
+                    display.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB}MB`;
                 } else {
                     display.style.color = 'green';
                     display.innerHTML = `✅ File size: ${sizeMB}MB - Ready to upload`;
@@ -48,9 +48,9 @@
             const file = document.getElementById('audio_file').files[0];
             if (file) {
                 const sizeMB = file.size / (1024 * 1024);
-                if (sizeMB > 100 * 1024) { // 100GB
+                if (sizeMB > 4.5) { // Vercel limit
                     e.preventDefault();
-                    alert('File is too large! Maximum size is 100GB. Your file is ' + sizeMB.toFixed(2) + 'MB');
+                    alert('File is too large! Vercel limits uploads to 4.5MB. Your file is ' + sizeMB.toFixed(2) + 'MB');
                     return false;
                 }
             }
@@ -65,5 +65,4 @@
         });
     </script>
     <br><br><br>
-</center>
 {% endblock %}
