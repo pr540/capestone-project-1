@@ -31,4 +31,6 @@ class NumpyMLP:
 
     def predict(self, X):
         probs = self.predict_proba(X)
-        return self.classes[np.argmax(probs, axis=1)][0]
+        # argmax returns an array of indices. We take the first one since we handle 1 sample.
+        idx = np.argmax(probs, axis=1)[0]
+        return str(self.classes[idx])

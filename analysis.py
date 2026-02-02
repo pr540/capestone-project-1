@@ -11,16 +11,20 @@ try:
 except ImportError:
     cv2 = None
 
-detector = None
+detector = {}
 model = None
 emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 
 def get_detector():
     global detector
-    # Use standard Haar Cascade as a lightweight alternative to FER
-    if detector is None and cv2:
-        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        detector = cv2.CascadeClassifier(cascade_path)
+    if not detector and cv2:
+        try:
+            base = cv2.data.haarcascades
+            detector['face'] = cv2.CascadeClassifier(base + 'haarcascade_frontalface_default.xml')
+            detector['smile'] = cv2.CascadeClassifier(base + 'haarcascade_smile.xml')
+            detector['eye'] = cv2.CascadeClassifier(base + 'haarcascade_eye.xml')
+        except Exception:
+            detector = None
     return detector
 
 def get_model():
@@ -34,24 +38,43 @@ def get_model():
     return model
 
 def analyze_video_faces(video_path):
-    face_cascade = get_detector()
-    if not face_cascade or not cv2: return "neutral", 0.0
+    dets = get_detector()
+    if not dets or not cv2: return "neutral", 0.0
     
     cap = cv2.VideoCapture(video_path)
-    # Since we don't have a specific video-emotion model anymore (it was inside FER),
-    # we'll use a simplified neutral fallback for video on serverless,
-    # or return neutral if face is detected.
-    found_face = False
-    while cap.isOpened():
+    stats = {'happy': 0, 'surprise': 0, 'neutral': 0, 'sad': 0}
+    total_frames = 0
+    
+    while cap.isOpened() and total_frames < 30: # Sample 30 frames
         ret, frame = cap.read()
         if not ret: break
+        total_frames += 1
+        if total_frames % 5 != 0: continue # Skip
+        
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
-        if len(faces) > 0:
-            found_face = True
-            break
+        faces = dets['face'].detectMultiScale(gray, 1.3, 5)
+        
+        for (x, y, w, h) in faces:
+            roi_gray = gray[y:y+h, x:x+w]
+            
+            # Simple heuristic detection
+            smiles = dets['smile'].detectMultiScale(roi_gray, 1.8, 20)
+            eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 10)
+            
+            if len(smiles) > 0:
+                stats['happy'] += 1
+            elif len(eyes) > 2:
+                stats['surprise'] += 1
+            elif len(eyes) < 2:
+                stats['sad'] += 1
+            else:
+                stats['neutral'] += 1
+    
     cap.release()
-    return ("neutral", 0.5) if found_face else (None, 0.0)
+    dominant = max(stats, key=stats.get)
+    # If no detections at all
+    if sum(stats.values()) == 0: return "neutral", 0.0
+    return dominant, stats[dominant] / sum(stats.values())
 
 def predict_audio_emotion(audio_data, sr):
     m = get_model()
