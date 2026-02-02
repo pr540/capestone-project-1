@@ -1,0 +1,32 @@
+venv/
+.git/
+.github/
+__pycache__/
+*.pyc
+instance/
+TESS_FEATURES.csv
+container_logs.txt
+logs.txt
+logs_utf8.txt
+img.png
+img_1.png
+deployment/
+.env
+.ipynb_checkpoints/
+*.mp4
+*.wav
+*.avi
+*.docx
+BUG_FIXES_2025-12-13.md
+FIXES_SUMMARY.md
+PROJECT_DOCUMENTATION.md
+README.md
+audio check.py
+check_db.py
+convert_to_docx.py
+debug_fer.py
+real time.py
+train_model.py
+warmup_logs.txt
+static/images/farm_background.jpg
+static/images/crop_background.jpg
