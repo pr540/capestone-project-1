@@ -39,22 +39,24 @@ def get_model():
 
 def analyze_video_faces(video_path):
     dets = get_detector()
-    if not dets or not cv2: return "neutral", 0.0
+    if not dets or not cv2: return "neutral", 0.0, {}
     
     cap = cv2.VideoCapture(video_path)
     stats = {'happy': 0, 'surprise': 0, 'neutral': 0, 'sad': 0}
     total_frames = 0
+    detected_faces = 0
     
-    while cap.isOpened() and total_frames < 30: # Sample 30 frames
+    while cap.isOpened() and total_frames < 60: # Sample 60 frames (approx 2s)
         ret, frame = cap.read()
         if not ret: break
         total_frames += 1
-        if total_frames % 5 != 0: continue # Skip
+        if total_frames % 3 != 0: continue # Skip
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = dets['face'].detectMultiScale(gray, 1.3, 5)
         
         for (x, y, w, h) in faces:
+            detected_faces += 1
             roi_gray = gray[y:y+h, x:x+w]
             
             # Improved heuristic detection
@@ -71,10 +73,12 @@ def analyze_video_faces(video_path):
                 stats['neutral'] += 1
     
     cap.release()
+    # If no faces found at all
+    if detected_faces == 0: return "neutral", 0.0, stats
+    
     dominant = max(stats, key=stats.get)
-    # If no detections at all
-    if sum(stats.values()) == 0: return "neutral", 0.0
-    return dominant, stats[dominant] / sum(stats.values())
+    confidence = stats[dominant] / sum(stats.values()) if sum(stats.values()) > 0 else 0.0
+    return dominant, confidence, stats
 
 def predict_audio_emotion(audio_data, sr):
     m = get_model()

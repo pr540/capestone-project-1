@@ -105,7 +105,7 @@ def predict():
         X = np.frombuffer(out, dtype=np.float32)
         
         if future_vis:
-            vis_emo, vis_conf = future_vis.result()
+            vis_emo, vis_conf, vis_stats = future_vis.result()
 
         if len(X) == 0:
              audio_emo, au_conf, note = "Silent/Error", 0.0, "Could not extract audio"
@@ -114,42 +114,64 @@ def predict():
             rms = np.sqrt(np.mean(X**2))
             audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
             
-            # Logic to prevent 'Pleasant Surprise' bias on quiet/ambient audio
-            if rms < 0.01:
-                if vis_emo:
-                    final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio too quiet)"
+            # Logic to prevent 'Pleasant Surprise' / 'Disgust' bias on quiet/ambient audio
+            # Higher RMS threshold (0.02) to filter out ambient room noise
+            if rms < 0.02:
+                if vis_emo and vis_conf > 0.1:
+                    final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio is background noise)"
                 else:
-                    final_emo, final_conf, note = "neutral", 0.9, "Silent audio detected"
+                    final_emo, final_conf, note = "neutral", 0.9, "Ambient noise detected"
             else:
                 # Weighted Fusion / Priority
                 if vis_emo:
-                    # Trap Emotions: 'disgust' and 'ps' are common model biases on noisy data
-                    trap_emotions = ["disgust", "ps", "Pleasant Surprise"]
+                    # TRAP DETECTION: 'disgust' and 'ps' are extremely common model misclassifications
+                    # If model is hitting 100% (1.0) on disgust, it's often a sign of feature mismatch
+                    is_trap = (audio_emo in ["disgust", "ps", "Pleasant Surprise"])
                     
-                    if audio_emo in trap_emotions and au_conf > 0.8:
-                        if vis_emo != "neutral" and vis_conf > 0.3:
-                            final_emo, final_conf, note = vis_emo, vis_conf, f"Visual ({vis_emo}) overrides biased audio ({audio_emo})"
-                        elif vis_emo == "neutral" and vis_conf > 0.5:
-                            final_emo, final_conf, note = "neutral", (vis_conf + au_conf)/2, "Visual neutral overrides audio bias"
+                    if is_trap:
+                        if vis_emo != "neutral" and vis_conf > 0.2:
+                            # Trust ANY clear facial expression over a disgust audio trap
+                            final_emo, final_conf, note = vis_emo, vis_conf, f"Visual {vis_emo} overrides audio trap {audio_emo}"
+                        elif vis_emo == "neutral" and vis_conf >= 0.0:
+                            # Even a weak neutral face is preferred over a certain 'disgust' audio trap
+                            final_emo, final_conf, note = "neutral", 0.85, "Visual neutral favored over audio bias"
                         else:
-                            final_emo, final_conf, note = audio_emo, au_conf, "Audio prioritized (weak visual signal)"
-                    elif vis_conf > au_conf + 0.15:
+                            # No face really found, but audio is trapped
+                            final_emo, final_conf, note = "neutral", 0.6, "Inconclusive (Audio Trap / No Face)"
+                    elif vis_conf > au_conf + 0.2:
                         final_emo, final_conf, note = vis_emo, vis_conf, "Based on higher visual confidence"
                     else:
+                        # Standard blending
                         final_emo, final_conf, note = audio_emo, au_conf, "Based on audio evidence"
                 else:
-                    final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
+                    # Audio-only
+                    # If audio is 'disgust' but 1.0 confidence, artificially lower confidence as it's likely a bias
+                    if audio_emo == "disgust" and au_conf > 0.95:
+                        final_emo, final_conf, note = "neutral", 0.5, "Suspected bias (Audio-only Disgust ignored)"
+                    else:
+                        final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
 
-        # Fast DB Storage
-        res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
-                               visual_emotion=vis_emo or "N/A", final_emotion=final_emo, confidence=final_conf)
-        db.session.add(res)
-        db.session.commit()
+        # Prepare all emotions for breakdown
+        all_emotions_data = []
+        emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
+        emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢', 'surprise':'😲'}
+        label_map = {'ps': 'Pleasant Surprise'}
         
-        print(f"[INFO] Analysis completed in {time.time() - start_time:.2f}s")
+        if 'probs' in locals():
+            for i, emo_id in enumerate(emotions_order):
+                prob = float(probs[i])
+                all_emotions_data.append({
+                    'id': emo_id,
+                    'name': label_map.get(emo_id, emo_id).capitalize(),
+                    'emoji': emoji_map.get(emo_id, '❓'),
+                    'prob': round(prob * 100, 1)
+                })
+            # Sort by probability
+            all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
 
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
-                             visual_emotion=vis_emo, audio_emotion=audio_emo, note=note)
+                             visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
+                             all_emotions=all_emotions_data)
     finally:
         if os.path.exists(tmp_path): os.unlink(tmp_path)
         if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): os.unlink(audio_path)
