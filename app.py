@@ -7,7 +7,7 @@ try:
     import librosa
 except ImportError:
     librosa = None
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
 from werkzeug.utils import secure_filename
 from database import db, PredictionResult
 from utils import allowed_file, is_video_file, extract_audio_from_video
@@ -15,6 +15,8 @@ from analysis import analyze_video_faces, predict_audio_emotion, warmup
 
 from concurrent.futures import ThreadPoolExecutor
 import time
+import traceback
+
 
 # App Setup
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -68,7 +70,6 @@ def clear_history():
         print(f"Error clearing history: {e}")
     return redirect('/analyze')
 
-from flask import redirect
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -82,9 +83,14 @@ def predict():
         file.save(tmp.name)
         tmp_path = tmp.name
 
+    # Initialize variables for template
+    final_emo, final_conf, note = "neutral", 0.0, "Analysis pending"
+    audio_emo, vis_emo = "Unknown", "N/A"
+    all_emotions_data = []
+
     try:
         start_time = time.time()
-        vis_emo, vis_conf = None, 0.0
+        vis_conf = 0.0
         audio_path = tmp_path
         
         # Parallel analysis for speed
@@ -115,7 +121,6 @@ def predict():
             audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
             
             # Logic to prevent 'Pleasant Surprise' / 'Disgust' bias on quiet/ambient audio
-            # Higher RMS threshold (0.02) to filter out ambient room noise
             if rms < 0.02:
                 if vis_emo and vis_conf > 0.1:
                     final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio is background noise)"
@@ -123,58 +128,62 @@ def predict():
                     final_emo, final_conf, note = "neutral", 0.9, "Ambient noise detected"
             else:
                 # Weighted Fusion / Priority
-                if vis_emo:
-                    # TRAP DETECTION: 'disgust' and 'ps' are extremely common model misclassifications
-                    # If model is hitting 100% (1.0) on disgust, it's often a sign of feature mismatch
+                if vis_emo and vis_emo != 'N/A':
                     is_trap = (audio_emo in ["disgust", "ps", "Pleasant Surprise"])
-                    
                     if is_trap:
                         if vis_emo != "neutral" and vis_conf > 0.2:
-                            # Trust ANY clear facial expression over a disgust audio trap
                             final_emo, final_conf, note = vis_emo, vis_conf, f"Visual {vis_emo} overrides audio trap {audio_emo}"
-                        elif vis_emo == "neutral" and vis_conf >= 0.0:
-                            # Even a weak neutral face is preferred over a certain 'disgust' audio trap
+                        elif vis_emo == "neutral":
                             final_emo, final_conf, note = "neutral", 0.85, "Visual neutral favored over audio bias"
                         else:
-                            # No face really found, but audio is trapped
                             final_emo, final_conf, note = "neutral", 0.6, "Inconclusive (Audio Trap / No Face)"
                     elif vis_conf > au_conf + 0.2:
                         final_emo, final_conf, note = vis_emo, vis_conf, "Based on higher visual confidence"
                     else:
-                        # Standard blending
                         final_emo, final_conf, note = audio_emo, au_conf, "Based on audio evidence"
                 else:
-                    # Audio-only
-                    # If audio is 'disgust' but 1.0 confidence, artificially lower confidence as it's likely a bias
                     if audio_emo == "disgust" and au_conf > 0.95:
                         final_emo, final_conf, note = "neutral", 0.5, "Suspected bias (Audio-only Disgust ignored)"
                     else:
                         final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
 
-        # Prepare all emotions for breakdown
-        all_emotions_data = []
-        emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
-        emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢', 'surprise':'😲'}
-        label_map = {'ps': 'Pleasant Surprise'}
-        
-        if 'probs' in locals():
+            # Prepare all emotions for breakdown
+            emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
+            emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢', 'surprise':'😲'}
+            label_map = {'ps': 'Pleasant Surprise'}
+            
             for i, emo_id in enumerate(emotions_order):
                 prob = float(probs[i])
                 all_emotions_data.append({
-                    'id': emo_id,
-                    'name': label_map.get(emo_id, emo_id).capitalize(),
-                    'emoji': emoji_map.get(emo_id, '❓'),
-                    'prob': round(prob * 100, 1)
+                    'id': emo_id, 'name': label_map.get(emo_id, emo_id).capitalize(),
+                    'emoji': emoji_map.get(emo_id, '❓'), 'prob': round(prob * 100, 1)
                 })
-            # Sort by probability
             all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
 
-        return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
-                             visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
-                             all_emotions=all_emotions_data)
+        # DB Storage
+        try:
+            res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
+                                   visual_emotion=str(vis_emo or "N/A"), final_emotion=final_emo, confidence=final_conf)
+            db.session.add(res)
+            db.session.commit()
+            print(f"[INFO] Analysis completed in {time.time() - start_time:.2f}s")
+        except Exception as e:
+            print(f"[ERROR] DB Save failed: {e}")
+            db.session.rollback()
+
+    except Exception as e:
+        print(f"[ERROR] Analysis crash: {e}")
+        traceback.print_exc()
+        final_emo, final_conf, note = "Error", 0.0, f"System failure: {str(e)}"
     finally:
         if os.path.exists(tmp_path): os.unlink(tmp_path)
-        if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): os.unlink(audio_path)
+        if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): 
+            try: os.unlink(audio_path)
+            except: pass
+
+    return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
+                         visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
+                         all_emotions=all_emotions_data)
 
 if __name__ == '__main__':
     try:

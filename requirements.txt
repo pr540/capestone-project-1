@@ -4,3 +4,4 @@ imageio-ffmpeg
 flask-sqlalchemy
 werkzeug>=3.0.1
 gunicorn
+opencv-python-headless
