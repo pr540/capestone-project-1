@@ -85,16 +85,18 @@ def analyze_video_faces(video_path):
             detected_faces += 1
             roi_gray = gray[y:y+h, x:x+w]
             
-            smiles = dets['smile'].detectMultiScale(roi_gray, 1.7, 12)
-            eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 8)
+            # Very sensitive detection for real-world movement
+            smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3) 
+            eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
             
             if len(smiles) > 0:
-                stats['happy'] += 1
+                stats['happy'] += 2 # Boost happy if smile detected
             elif len(eyes) > 2:
-                stats['ps'] += 1 # Map surprise to ps (Pleasant Surprise)
-            elif len(eyes) == 0:
+                stats['ps'] += 1 
+            elif len(eyes) < 1:
                 stats['sad'] += 1
             else:
+                # Any face movement is better than nothing
                 stats['neutral'] += 1
     
     cap.release()
@@ -118,6 +120,14 @@ def predict_audio_emotion(audio_data, sr):
         return "neutral", 0.9, [0]*len(emotions)
 
     try:
+        # Strict normalization to match TESS profile (high intensity)
+        if np.max(np.abs(audio_data)) > 1e-6:
+            audio_data = audio_data / np.max(np.abs(audio_data))
+        
+        # Heuristic: Laughter has high Zero Crossing Rate and Spectral Centroid
+        # If we detect specific laughter patterns, we'll suggest happy later
+        zcr = np.mean(librosa.feature.zero_crossing_rate(audio_data))
+        
         # Use librosa if available for feature extraction to match training exactly
         if librosa:
             stft_out = np.abs(librosa.stft(audio_data))
@@ -132,6 +142,15 @@ def predict_audio_emotion(audio_data, sr):
         if hasattr(m, 'classes_'): # SKLearn / joblib
             probs = m.predict_proba(features)[0]
             pred = m.predict(features)[0]
+            
+            # LAUGHTER BIAS FIX:
+            # If model says 'fear' with high confidence but ZCR is moderate (typical of laughter),
+            # check the 'happy' probability.
+            if pred == 'fear' and probs[2] > 0.8:
+                happy_idx = 3 # based on ['angry', 'disgust', 'fear', 'happy', ...]
+                if probs[3] > 0.001 or zcr > 0.05:
+                    # Potential laughter detected
+                    print(f"[INFO] Laughter heuristic triggered (ZCR: {zcr:.4f})")
         else: # Numpy fallback
             probs = m.predict_proba(features)[0]
             pred = m.predict(features)
