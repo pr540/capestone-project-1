@@ -118,11 +118,10 @@ def predict():
             future_vis = executor.submit(analyze_video_faces, tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        # Prepare audio stream - skip first 0.5s of potential silence
         sr = 22050
         cmd = [
             imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
-            '-ss', '0.5', '-t', '15', # Skip 0.5s, Take 15s
+            '-t', '15', # Removed skip
             '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -132,15 +131,15 @@ def predict():
         if future_vis:
             vis_emo, vis_conf, vis_stats = future_vis.result()
 
-        if len(X) < 1000:
+        if len(X) < 500:
              audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short"
              final_emo, final_conf = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf
         else:
             rms = np.sqrt(np.mean(X**2))
             audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
             
-            if rms < 0.01:
-                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.1:
+            if rms < 0.002: # Much lower silence threshold
+                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
                     final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
                 else:
                     final_emo, final_conf, note = "neutral", 0.9, "Silence detected"

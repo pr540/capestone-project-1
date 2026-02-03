@@ -116,8 +116,11 @@ def predict_audio_emotion(audio_data, sr):
     
     # Accuracy safety: If signal is extremely low energy, it's silence
     rms = np.sqrt(np.mean(audio_data**2))
-    if rms < 0.01: 
-        return "neutral", 0.9, [0]*len(emotions)
+    if rms < 0.001: 
+        probs = [0.0] * len(emotions)
+        if 'neutral' in emotions:
+            probs[emotions.index('neutral')] = 1.0
+        return "neutral", 1.0, probs
 
     try:
         # Strict normalization to match TESS profile (high intensity)

@@ -41,10 +41,17 @@
                                     </span>
                                 </td>
                                 <td>
+                                    {% set color = '#95a5a6' %}
+                                    {% if prediction.final_emotion.lower() == 'happy' %}{% set color = '#2ecc71' %}
+                                    {% elif prediction.final_emotion.lower() == 'sad' %}{% set color = '#3498db' %}
+                                    {% elif prediction.final_emotion.lower() == 'angry' %}{% set color = '#ff4d4d' %}
+                                    {% elif prediction.final_emotion.lower() == 'fear' %}{% set color = '#34495e' %}
+                                    {% elif prediction.final_emotion.lower() in ['ps', 'surprise', 'pleasant surprise'] %}{% set color = '#f1c40f' %}
+                                    {% endif %}
                                     <strong>
-                                        <span
-                                            class="emotion-badge badge-{{ prediction.final_emotion.lower() if prediction.final_emotion else 'neutral' }}">
-                                            {{ prediction.final_emotion }}
+                                        <span class="emotion-badge"
+                                            style="background: {{ color }}; color: {{ '#333' if color == '#f1c40f' else 'white' }}; padding: 4px 12px; border-radius: 20px;">
+                                            {{ prediction.final_emotion|upper }}
                                         </span>
                                     </strong>
                                 </td>
