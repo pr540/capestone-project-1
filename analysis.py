@@ -74,7 +74,7 @@ def analyze_video_faces(video_path):
     
     cap.release()
     # If no faces found at all
-    if detected_faces == 0: return "neutral", 0.0, stats
+    if detected_faces == 0: return "N/A", 0.0, stats
     
     dominant = max(stats, key=stats.get)
     confidence = stats[dominant] / sum(stats.values()) if sum(stats.values()) > 0 else 0.0
