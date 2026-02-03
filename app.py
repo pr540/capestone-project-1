@@ -102,38 +102,46 @@ def predict():
         file.save(tmp.name)
         tmp_path = tmp.name
 
-    # Initialize variables for template
-    final_emo, final_conf, note = "neutral", 0.0, "Analysis pending"
+    # Initialize variables with safe defaults
+    final_emo, final_conf, note = "neutral", 0.0, "Processing..."
     audio_emo, vis_emo = "Unknown", "N/A"
     all_emotions_data = []
+    audio_segments = []
+    probs = [0.0] * len(EMOTIONS_ORDER)
+    X = np.array([])
+    sr = 22050
 
     try:
         start_time = time.time()
-        vis_conf = 0.0
         audio_path = tmp_path
         
         # Parallel analysis for speed
-        future_vis = None
         if is_video_file(file.filename):
             future_vis = executor.submit(analyze_video_faces, tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
+        else:
+            future_vis = None
         
         try:
+            # Safe ffmpeg detection
+            try:
+                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            except:
+                ffmpeg_exe = "ffmpeg"
+
             # Prepare audio stream
-            sr = 22050
             cmd = [
-                imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
+                ffmpeg_exe, '-y', '-i', audio_path,
                 '-t', '15',
                 '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
             ]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             out, _ = process.communicate()
-            X = np.frombuffer(out, dtype=np.float32)
+            if out:
+                X = np.frombuffer(out, dtype=np.float32)
+            else:
+                X = np.array([])
             
-            # Default values
-            audio_segments = []
-            probs = [0.0] * len(EMOTIONS_ORDER)
-
             if future_vis:
                 vis_emo, vis_conf, vis_stats = future_vis.result()
 

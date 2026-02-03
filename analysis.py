@@ -1,11 +1,15 @@
 import os
 import numpy as np
 import subprocess
-import imageio_ffmpeg
 try:
     import cv2
 except ImportError:
     cv2 = None
+
+try:
+    import imageio_ffmpeg
+except ImportError:
+    imageio_ffmpeg = None
 
 try:
     import librosa
@@ -29,12 +33,24 @@ def get_detector():
     global detector
     if not detector and cv2:
         try:
-            base = cv2.data.haarcascades
-            detector['face'] = cv2.CascadeClassifier(base + 'haarcascade_frontalface_default.xml')
-            detector['smile'] = cv2.CascadeClassifier(base + 'haarcascade_smile.xml')
-            detector['eye'] = cv2.CascadeClassifier(base + 'haarcascade_eye.xml')
-        except Exception:
-            detector = None
+            # Multi-path cascade search
+            paths = []
+            if hasattr(cv2, 'data') and hasattr(cv2.data, 'haarcascades'):
+                paths.append(cv2.data.haarcascades)
+            paths.extend(['/usr/share/opencv/haarcascades/', '/usr/local/share/opencv/haarcascades/'])
+            
+            base = ""
+            for p in paths:
+                if os.path.exists(os.path.join(p, 'haarcascade_frontalface_default.xml')):
+                    base = p
+                    break
+            
+            detector['face'] = cv2.CascadeClassifier(os.path.join(base, 'haarcascade_frontalface_default.xml'))
+            detector['smile'] = cv2.CascadeClassifier(os.path.join(base, 'haarcascade_smile.xml'))
+            detector['eye'] = cv2.CascadeClassifier(os.path.join(base, 'haarcascade_eye.xml'))
+        except Exception as e:
+            print(f"[WARN] Detector init failed: {e}")
+            detector = {} # Empty but not None to stop retrying
     return detector
 
 def get_model():
@@ -130,7 +146,7 @@ def extract_audio_features(audio_data, sr):
 
 def predict_audio_emotion(audio_data, sr):
     m = get_model()
-    if not m: return "neutral", 0.0, [0]*len(emotions)
+    if not m: return "neutral", 0.0, [0]*len(emotions), []
     
     # Accuracy safety: If signal is extremely low energy, it's silence
     max_val = np.max(np.abs(audio_data))
