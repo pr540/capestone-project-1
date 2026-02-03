@@ -81,6 +81,7 @@
   .seg-angry { background-color: #ff4d4d !important; }
   .seg-fear { background-color: #34495e !important; }
   .seg-ps, .seg-surprise { background-color: #f1c40f !important; }
+  .seg-disgust { background-color: #8e44ad !important; } /* Purple for Disgust */
   .seg-neutral { background-color: #95a5a6 !important; }
 </style>
 
@@ -133,6 +134,10 @@
     <div class="emotion-emoji">😢</div>
     <div class="emotion-name">Sad</div>
     <div class="emotion-description">The analysis indicates an expression of sadness</div>
+    {% elif predicted_emotion == 'disgust' %}
+    <div class="emotion-emoji">🤢</div>
+    <div class="emotion-name">Disgust</div>
+    <div class="emotion-description">The analysis suggests aversion or distaste</div>
     {% else %}
     <div class="emotion-emoji">🤔</div>
     <div class="emotion-name">{{ predicted_emotion.capitalize() if predicted_emotion else 'Unknown' }}</div>

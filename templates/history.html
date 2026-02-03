@@ -46,6 +46,7 @@
                                     {% elif prediction.final_emotion.lower() == 'sad' %}{% set color = '#3498db' %}
                                     {% elif prediction.final_emotion.lower() == 'angry' %}{% set color = '#ff4d4d' %}
                                     {% elif prediction.final_emotion.lower() == 'fear' %}{% set color = '#34495e' %}
+                                    {% elif prediction.final_emotion.lower() == 'disgust' %}{% set color = '#8e44ad' %}
                                     {% elif prediction.final_emotion.lower() in ['ps', 'surprise', 'pleasant surprise'] %}{% set color = '#f1c40f' %}
                                     {% endif %}
                                     <strong>
