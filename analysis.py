@@ -1,18 +1,28 @@
 import os
-import pickle
 import numpy as np
 import subprocess
 import imageio_ffmpeg
-from mlp_numpy import NumpyMLP
-from audio_features_numpy import extract_features_combined
-
 try:
     import cv2
 except ImportError:
     cv2 = None
 
+try:
+    import librosa
+except ImportError:
+    librosa = None
+
+try:
+    import joblib
+except ImportError:
+    joblib = None
+
+from mlp_numpy import NumpyMLP
+from audio_features_numpy import extract_features_combined
+
 detector = {}
 model = None
+# Standard TESS emotions
 emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 
 def get_detector():
@@ -30,11 +40,27 @@ def get_detector():
 def get_model():
     global model
     if model is None:
+        # Priority 1: Original PKL model (most accurate)
+        if joblib:
+            try:
+                model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp.pkl')
+                if os.path.exists(model_path):
+                    model = joblib.load(model_path)
+                    print("[INFO] Loaded original PKL model.")
+                    return model
+            except Exception as e:
+                print(f"[WARN] Loading PKL failed: {e}")
+        
+        # Priority 2: Numpy fallback
         try:
             model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp_weights.npz')
-            model = NumpyMLP(model_path)
+            if os.path.exists(model_path):
+                model = NumpyMLP(model_path)
+                print("[INFO] Fallback to NumpyMLP.")
+            else:
+                print("[ERROR] No model weights found!")
         except Exception as e:
-            print(f"[ERROR] Loading model failed: {e}")
+            print(f"[ERROR] Loading NumpyMLP failed: {e}")
     return model
 
 def analyze_video_faces(video_path):
@@ -42,7 +68,7 @@ def analyze_video_faces(video_path):
     if not dets or not cv2: return "neutral", 0.0, {}
     
     cap = cv2.VideoCapture(video_path)
-    stats = {'happy': 0, 'surprise': 0, 'neutral': 0, 'sad': 0}
+    stats = {e: 0 for e in emotions}
     total_frames = 0
     detected_faces = 0
     
@@ -50,7 +76,7 @@ def analyze_video_faces(video_path):
         ret, frame = cap.read()
         if not ret: break
         total_frames += 1
-        if total_frames % 3 != 0: continue # Skip
+        if total_frames % 5 != 0: continue # Skip more frames for performance
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = dets['face'].detectMultiScale(gray, 1.3, 5)
@@ -59,45 +85,62 @@ def analyze_video_faces(video_path):
             detected_faces += 1
             roi_gray = gray[y:y+h, x:x+w]
             
-            # Improved heuristic detection
             smiles = dets['smile'].detectMultiScale(roi_gray, 1.7, 12)
             eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 8)
             
             if len(smiles) > 0:
                 stats['happy'] += 1
             elif len(eyes) > 2:
-                stats['surprise'] += 1
-            elif len(eyes) < 2:
+                stats['ps'] += 1 # Map surprise to ps (Pleasant Surprise)
+            elif len(eyes) == 0:
                 stats['sad'] += 1
             else:
                 stats['neutral'] += 1
     
     cap.release()
-    # If no faces found at all
     if detected_faces == 0: return "N/A", 0.0, stats
     
+    # Selection logic
     dominant = max(stats, key=stats.get)
-    if dominant == 'surprise':
-        dominant = 'ps' # Map to Pleasant Surprise to match audio model
+    val = stats[dominant]
     
-    confidence = stats.get(dominant, 0) / sum(stats.values()) if sum(stats.values()) > 0 else 0.0
+    total = sum(stats.values())
+    confidence = val / total if total > 0 else 0.0
     return str(dominant), float(confidence), stats
 
 def predict_audio_emotion(audio_data, sr):
     m = get_model()
     if not m: return "neutral", 0.0, [0]*len(emotions)
     
+    # Accuracy safety: If signal is extremely low energy, it's silence
+    rms = np.sqrt(np.mean(audio_data**2))
+    if rms < 0.01: 
+        return "neutral", 0.9, [0]*len(emotions)
+
     try:
-        features = extract_features_combined(audio_data, sr).reshape(1, -1)
-        probs = m.predict_proba(features)[0]
-        # Fixed: m.predict already returns the string label, indexing [0] was truncating it
-        pred = m.predict(features)
-        return pred, np.max(probs), probs
+        # Use librosa if available for feature extraction to match training exactly
+        if librosa:
+            stft_out = np.abs(librosa.stft(audio_data))
+            chr_f = np.mean(librosa.feature.chroma_stft(S=stft_out, sr=sr).T, axis=0)
+            mfc_f = np.mean(librosa.feature.mfcc(y=audio_data, sr=sr, n_mfcc=40).T, axis=0)
+            mel_f = np.mean(librosa.feature.melspectrogram(y=audio_data, sr=sr, n_mels=128).T, axis=0)
+            features = np.hstack([chr_f, mfc_f, mel_f]).reshape(1, -1)
+        else:
+            features = extract_features_combined(audio_data, sr).reshape(1, -1)
+        
+        # Standardize prediction call based on model type
+        if hasattr(m, 'classes_'): # SKLearn / joblib
+            probs = m.predict_proba(features)[0]
+            pred = m.predict(features)[0]
+        else: # Numpy fallback
+            probs = m.predict_proba(features)[0]
+            pred = m.predict(features)
+            
+        return str(pred), float(np.max(probs)), probs
     except Exception as e:
-        print(f"Feature extraction failed: {e}")
+        print(f"[ERROR] Audio prediction crash: {e}")
         return "neutral", 0.0, [0]*len(emotions)
 
 def warmup():
     print("[INFO] Warmup (Static Mode)")
-    # No-op for now to save memory
-    pass
+    get_model()

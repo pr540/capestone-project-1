@@ -139,21 +139,25 @@ def predict():
             rms = np.sqrt(np.mean(X**2))
             audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
             
-            if rms < 0.005: # Ambient silence
-                if vis_emo and vis_emo != 'N/A':
+            if rms < 0.01: # Consistent threshold with analysis.py
+                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.1:
                     final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
                 else:
                     final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
             else:
                 # Weighted Fusion Logic
                 if vis_emo and vis_emo != 'N/A' and vis_conf > 0.1:
-                    if au_conf > 0.95: # Strong audio signal (e.g. disgust) - respect it!
+                    # If audio is neutral but video is expressive, trust video
+                    if audio_emo == 'neutral' and vis_emo != 'neutral':
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Expressive visual over neutral audio"
+                    elif au_conf > 0.95: 
                         final_emo, final_conf, note = audio_emo, au_conf, f"Strong audio {audio_emo} detected"
                     elif vis_conf > au_conf + 0.3:
                         final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
                     else:
                         final_emo, final_conf, note = audio_emo, au_conf, "Audio analysis prioritized"
                 else:
+                    # Pure Audio Logic
                     final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
 
             # Unique Fingerprint using MFCCs
