@@ -22,7 +22,7 @@ from audio_features_numpy import extract_features_combined
 
 detector = {}
 model = None
-# Standard TESS emotions
+# Matches PKL order exactly: ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 
 def get_detector():
@@ -132,36 +132,55 @@ def predict_audio_emotion(audio_data, sr):
     m = get_model()
     if not m: return "neutral", 0.0, [0]*len(emotions)
     
-    rms = np.sqrt(np.mean(audio_data**2))
-    if rms < 0.001: 
+    # Accuracy safety: If signal is extremely low energy, it's silence
+    max_val = np.max(np.abs(audio_data))
+    if max_val < 0.001: 
         probs = [0.0] * len(emotions)
         probs[emotions.index('neutral')] = 1.0
         return "neutral", 1.0, probs
 
     try:
-        features = extract_audio_features(audio_data, sr)
-        zcr = np.mean(librosa.feature.zero_crossing_rate(audio_data)) if librosa else 0.0
+        # Segmented Analysis: Split into 3s chunks to catch peak emotions/laughter
+        chunk_size = sr * 3
+        segments = []
+        for i in range(0, len(audio_data), chunk_size):
+            chunk = audio_data[i:i+chunk_size]
+            if len(chunk) < sr: continue # Too short
+            segments.append(chunk)
         
-        if hasattr(m, 'classes_'): # SKLearn / joblib
-            probs = m.predict_proba(features)[0]
-            pred = m.predict(features)[0]
+        if not segments: segments = [audio_data]
+        
+        chunk_results = []
+        for chunk in segments:
+            features = extract_audio_features(chunk, sr)
+            if hasattr(m, 'classes_'): 
+                p = m.predict_proba(features)[0]
+                label = str(m.predict(features)[0])
+            else:
+                p = m.predict_proba(features)[0]
+                label = str(m.predict(features))
             
-            # BIAS CORRECTION: Laughter (Happy) often misclassified as Fear
-            # emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
-            # fear = idx 2, happy = idx 3
-            if pred == 'fear' and probs[2] > 0.7:
-                if (len(probs) > 3 and probs[3] > 0.01) or zcr > 0.06:
-                    print(f"[INFO] Laughter bias correction: Fear -> Happy (ZCR: {zcr:.4f})")
-                    pred = 'happy'
-                    # Enhance happy confidence for the UI
-                    temp_probs = list(probs)
-                    temp_probs[3] = max(temp_probs[3], 0.6)
-                    probs = np.array(temp_probs)
-        else: # Numpy fallback
-            probs = m.predict_proba(features)[0]
-            pred = m.predict(features)
-            
-        return str(pred), float(np.max(probs)), probs
+            # Laughter Heuristic per chunk
+            zcr = np.mean(librosa.feature.zero_crossing_rate(chunk)) if librosa else 0.0
+            if label == 'fear' and zcr > 0.06:
+                label = 'happy'
+                # Modify p to reflect correction
+                new_p = list(p)
+                new_p[3] = max(new_p[3], 0.7) # happy
+                p = np.array(new_p)
+                
+            chunk_results.append((label, p))
+
+        # Decision: Pick the most "expressive" chunk (not neutral if others exist)
+        non_neutral = [r for r in chunk_results if r[0] != 'neutral']
+        if non_neutral:
+            # Pick the one with highest confidence
+            final_r = max(non_neutral, key=lambda x: np.max(x[1]))
+            return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
+        else:
+            # All neutral or only one segment
+            return chunk_results[0][0], float(np.max(chunk_results[0][1])), chunk_results[0][1], chunk_results
+
     except Exception as e:
         print(f"[ERROR] Audio prediction failed: {e}")
         return "neutral", 0.0, [0]*len(emotions)

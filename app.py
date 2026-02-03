@@ -136,39 +136,27 @@ def predict():
              final_emo, final_conf = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf
         else:
             rms = np.sqrt(np.mean(X**2))
-            audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
+            audio_emo, au_conf, probs, audio_segments = predict_audio_emotion(X, sr)
             
-            if rms < 0.002: # Much lower silence threshold
+            if rms < 0.002:
                 if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
                     final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
                 else:
                     final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
             else:
-                # Weighted Fusion Logic
-                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05: # Lower confidence threshold for fusion
-                    # HEURISTIC: Fear vs Laughter correction
-                    # If audio is 'fear' but we see ANY happy frames in video (even 2+), it's likely laughter/happy
-                    if audio_emo == 'fear' and (vis_emo == 'happy' or vis_stats.get('happy', 0) > 1):
-                         final_emo, final_conf, note = "happy", max(vis_conf, 0.6), "Laughter detected (Corrected from Fear)"
-                    # If audio is neutral but video is expressive, trust video
-                    elif audio_emo == 'neutral' and vis_emo != 'neutral':
+                # Dynamic Weighted Fusion
+                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
+                    if audio_emo == 'neutral' and vis_emo != 'neutral':
                         final_emo, final_conf, note = vis_emo, vis_conf, "Expressive visual over neutral audio"
-                    elif au_conf > 0.98 and audio_emo != 'fear': 
+                    elif au_conf > 0.98: 
                         final_emo, final_conf, note = audio_emo, au_conf, f"Strong audio {audio_emo}"
-                    elif vis_conf > au_conf + 0.15: # Trust video more easily
+                    elif vis_conf > au_conf + 0.1: # Even lower threshold to trust video
                         final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
                     else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Audio prioritized"
+                        final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritized"
                 else:
-                    # Pure Audio Logic - Apply laughter heuristic for audio-only
-                    if audio_emo == 'fear' and au_conf > 0.9:
-                        # If audio is 'fear' but extremely loud/high-energy, it's often laughter
-                        if rms > 0.1: # Laughing is usually loud
-                            final_emo, final_conf, note = "happy", 0.8, "Detected laughter patterns in audio"
-                        else:
-                            final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
-                    else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
+                    # Pure Audio Logic - Trust the segmented analysis result
+                    final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
 
             # Unique Fingerprint using MFCCs
             from audio_features_numpy import extract_features_combined
@@ -235,7 +223,7 @@ def predict():
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
                              visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
                              all_emotions=all_emotions_data, vis_stats=locals().get('vis_stats', {}),
-                             feat_hint=feat_hint)
+                             feat_hint=feat_hint, audio_segments=locals().get('audio_segments', []))
 
 if __name__ == '__main__':
     try:
