@@ -101,15 +101,20 @@ def analyze_video_faces(video_path):
             smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3) 
             eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
             
+            # Strict smile filter
             if len(smiles) > 0 and len(smiles) < 3:
-                stats['happy'] += 0.5 # Reduced boost, prevented overpowering
+                # Only trust smile if eyes are also active (Duchenne marker)
+                if len(eyes) > 0:
+                     stats['happy'] += 0.5 
+                else:
+                     stats['happy'] += 0.2
             elif len(eyes) > 2:
                 stats['ps'] += 1 
             elif len(eyes) < 1:
                 stats['sad'] += 1
             else:
-                # Any face movement is better than nothing
-                stats['neutral'] += 1
+                stats['disgust'] += 0.5 # Default negative interpretation for no-smile
+                stats['neutral'] += 0.5
     
     cap.release()
     if detected_faces == 0: return "N/A", 0.0, stats
@@ -158,10 +163,22 @@ def predict_audio_emotion(audio_data, sr):
                 p = m.predict_proba(features)[0]
                 label = str(m.predict(features))
             
-            # Laughter Heuristic removed - relying on pure model for better Sad/Disgust accuracy
-            # zcr = numpy_zcr(chunk)
-            # if label == 'fear' and zcr > 0.08:
-            #     label = 'happy'
+            # Feature Correction: Disgust/Sad often confused for Happy by the model
+            # Happy = High Energy + High ZCR. Disgust/Sad = Low Energy + Low ZCR.
+            if label == 'happy':
+                try:
+                    zcr = numpy_zcr(chunk)
+                    rms = np.sqrt(np.mean(chunk**2))
+                    # Thresholds: ZCR < 0.05 is usually speech/grunt, not laughter
+                    if zcr < 0.04: 
+                         if rms < 0.005: 
+                             label = 'sad'
+                             # Manual probability adjust
+                             p = np.zeros_like(p); p[6] = 0.8 # sad index
+                         else:
+                             label = 'disgust'
+                             p = np.zeros_like(p); p[1] = 0.8 # disgust index
+                except: pass
                 
             chunk_results.append((label, p))
 
