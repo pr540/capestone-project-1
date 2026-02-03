@@ -118,70 +118,84 @@ def predict():
             future_vis = executor.submit(analyze_video_faces, tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        sr = 22050
-        cmd = [
-            imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
-            '-t', '15', # Removed skip
-            '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
-        ]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        out, _ = process.communicate()
-        X = np.frombuffer(out, dtype=np.float32)
-        
-        if future_vis:
-            vis_emo, vis_conf, vis_stats = future_vis.result()
-
-        if len(X) < 500:
-             audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short"
-             final_emo, final_conf = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf
-        else:
-            rms = np.sqrt(np.mean(X**2))
-            audio_emo, au_conf, probs, audio_segments = predict_audio_emotion(X, sr)
+        try:
+            # Prepare audio stream
+            sr = 22050
+            cmd = [
+                imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
+                '-t', '15',
+                '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
+            ]
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            out, _ = process.communicate()
+            X = np.frombuffer(out, dtype=np.float32)
             
-            if rms < 0.002:
-                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
-                    final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
-                else:
-                    final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
+            # Default values
+            audio_segments = []
+            probs = [0.0] * len(EMOTIONS_ORDER)
+
+            if future_vis:
+                vis_emo, vis_conf, vis_stats = future_vis.result()
+
+            if len(X) < 500:
+                 audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short"
+                 final_emo, final_conf = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf
             else:
-                # Dynamic Weighted Fusion
-                if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
-                    if audio_emo == 'neutral' and vis_emo != 'neutral':
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Expressive visual over neutral audio"
-                    elif au_conf > 0.98: 
-                        final_emo, final_conf, note = audio_emo, au_conf, f"Strong audio {audio_emo}"
-                    elif vis_conf > au_conf + 0.1: # Even lower threshold to trust video
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
-                    else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritized"
+                rms = np.sqrt(np.mean(X**2))
+                # Unpack safely
+                res_audio = predict_audio_emotion(X, sr)
+                if len(res_audio) == 4:
+                    audio_emo, au_conf, probs, audio_segments = res_audio
                 else:
-                    # Pure Audio Logic - Trust the segmented analysis result
-                    final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
+                    audio_emo, au_conf, probs = res_audio[:3]
+                    audio_segments = []
 
-            # Unique Fingerprint using MFCCs
-            from audio_features_numpy import extract_features_combined
-            feats = extract_features_combined(X, sr)
-            # Use small subset of features for fingerprint
-            raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]]) 
-
-            # Prepare all emotions for breakdown
-            probs_list = list(probs) if 'probs' in locals() and probs is not None else []
-            
-            for i, emo_id in enumerate(EMOTIONS_ORDER):
-                prob = 0.0
-                if i < len(probs_list):
-                    prob = float(probs_list[i])
-                elif 'vis_emo' in locals() and vis_emo == emo_id:
-                    # If audio is silent, but visual detected this emotion
-                    prob = 1.0 
+                if rms < 0.002:
+                    if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
+                    else:
+                        final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
+                else:
+                    # Dynamic Weighted Fusion
+                    if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
+                        if audio_emo == 'neutral' and vis_emo != 'neutral':
+                            final_emo, final_conf, note = vis_emo, vis_conf, "Expressive visual over neutral audio"
+                        elif au_conf > 0.98: 
+                            final_emo, final_conf, note = audio_emo, au_conf, f"Strong audio {audio_emo}"
+                        elif vis_conf > au_conf + 0.1:
+                            final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
+                        else:
+                            final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritized"
+                    else:
+                        final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
                 
-                all_emotions_data.append({
-                    'id': emo_id, 
-                    'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
-                    'emoji': EMOJI_MAP.get(emo_id, '❓'), 
-                    'prob': round(prob * 100, 1)
-                })
-            all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
+                # Signal Fingerprint extraction
+                from audio_features_numpy import extract_features_combined
+                feats = extract_features_combined(X, sr)
+                raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]])
+        except Exception as e:
+            print(f"[ERROR] Inner prediction loop failed: {e}")
+            traceback.print_exc()
+            final_emo, final_conf, note = "Error", 0.0, f"Analysis Error: {str(e)}"
+
+        # Prepare all emotions for breakdown
+        probs_list = list(probs) if 'probs' in locals() and probs is not None else []
+        
+        for i, emo_id in enumerate(EMOTIONS_ORDER):
+            prob = 0.0
+            if i < len(probs_list):
+                prob = float(probs_list[i])
+            elif 'vis_emo' in locals() and vis_emo == emo_id:
+                # If audio is silent, but visual detected this emotion
+                prob = 1.0 
+            
+            all_emotions_data.append({
+                'id': emo_id, 
+                'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
+                'emoji': EMOJI_MAP.get(emo_id, '❓'), 
+                'prob': round(prob * 100, 1)
+            })
+        all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
 
         # DB Storage with explicit validation
         try:
