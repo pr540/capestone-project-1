@@ -162,7 +162,11 @@ def predict():
                     else:
                         final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
                 else:
-                    if vis_emo != 'N/A' and vis_conf > 0.05:
+                    # Logic: Trust Audio for "Hard" emotions (Disgust/Sad/Fear) unless video is extremely confident
+                    # Video "Happy" is often a false positive (grimace)
+                    if audio_emo in ['disgust', 'sad', 'fear', 'angry']:
+                        final_emo, final_conf, note = audio_emo, au_conf, f"Priority Audio {audio_emo}"
+                    elif vis_emo != 'N/A' and vis_conf > 0.05:
                         if vis_conf > au_conf + 0.1:
                             final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
                         else:

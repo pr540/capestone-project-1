@@ -101,8 +101,8 @@ def analyze_video_faces(video_path):
             smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3) 
             eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
             
-            if len(smiles) > 0:
-                stats['happy'] += 2 # Boost happy if smile detected
+            if len(smiles) > 0 and len(smiles) < 3:
+                stats['happy'] += 0.5 # Reduced boost, prevented overpowering
             elif len(eyes) > 2:
                 stats['ps'] += 1 
             elif len(eyes) < 1:
@@ -158,14 +158,10 @@ def predict_audio_emotion(audio_data, sr):
                 p = m.predict_proba(features)[0]
                 label = str(m.predict(features))
             
-            # Laughter Heuristic per chunk
-            zcr = numpy_zcr(chunk)
-            if label == 'fear' and zcr > 0.08: # Slightly higher threshold for numpy version
-                label = 'happy'
-                # Modify p to reflect correction
-                new_p = list(p)
-                new_p[3] = max(new_p[3], 0.7) # happy
-                p = np.array(new_p)
+            # Laughter Heuristic removed - relying on pure model for better Sad/Disgust accuracy
+            # zcr = numpy_zcr(chunk)
+            # if label == 'fear' and zcr > 0.08:
+            #     label = 'happy'
                 
             chunk_results.append((label, p))
 
