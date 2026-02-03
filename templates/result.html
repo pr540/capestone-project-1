@@ -190,7 +190,7 @@
           {% for seg_label, seg_probs in audio_segments %}
           <div class="seg-{{ seg_label|lower }}" style="flex: 1; position: relative;" title="{{ seg_label|upper }}">
             <div style="font-size: 8px; color: white; text-align: center; line-height: 30px; font-weight: bold;">
-              {{ seg_label|upper[:3] }}
+              {{ seg_label[:3]|upper }}
             </div>
           </div>
           {% endfor %}
