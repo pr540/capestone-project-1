@@ -96,12 +96,6 @@ def predict():
     file = request.files['audio_file']
     if not file or not allowed_file(file.filename): return jsonify({'error': 'Invalid file'}), 400
 
-    # Save temp and load
-    ext = os.path.splitext(file.filename)[1]
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        file.save(tmp.name)
-        tmp_path = tmp.name
-
     # Initialize variables with safe defaults
     final_emo, final_conf, note = "neutral", 0.0, "Processing..."
     audio_emo, vis_emo = "Unknown", "N/A"
@@ -111,14 +105,26 @@ def predict():
     X = np.array([])
     sr = 22050
 
+    # Help find where it fails
     try:
+        # 1. Save file to /tmp/ if on Vercel
+        temp_dir = "/tmp" if os.environ.get('VERCEL') else None
+        ext = os.path.splitext(file.filename)[1]
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir=temp_dir) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
         start_time = time.time()
         audio_path = tmp_path
         
         # Parallel analysis for speed
         if is_video_file(file.filename):
-            future_vis = executor.submit(analyze_video_faces, tmp_path)
-            audio_path = extract_audio_from_video(tmp_path)
+            try:
+                future_vis = executor.submit(analyze_video_faces, tmp_path)
+                audio_path = extract_audio_from_video(tmp_path)
+            except Exception as e:
+                print(f"[WARN] Video processing failed: {e}")
+                future_vis = None
         else:
             future_vis = None
         
@@ -143,7 +149,11 @@ def predict():
                 X = np.array([])
             
             if future_vis:
-                vis_emo, vis_conf, vis_stats = future_vis.result()
+                try:
+                    vis_emo, vis_conf, vis_stats = future_vis.result(timeout=10)
+                except Exception as e:
+                    print(f"[WARN] Vision result timeout/fail: {e}")
+                    vis_emo, vis_conf, vis_stats = "N/A", 0.0, {}
 
             if len(X) < 500:
                  audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short"
@@ -178,9 +188,12 @@ def predict():
                         final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
                 
                 # Signal Fingerprint extraction
-                from audio_features_numpy import extract_features_combined
-                feats = extract_features_combined(X, sr)
-                raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]])
+                try:
+                    from audio_features_numpy import extract_features_combined
+                    feats = extract_features_combined(X, sr)
+                    raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]])
+                except:
+                    raw_hint = "Fingerprint error"
         except Exception as e:
             print(f"[ERROR] Inner prediction loop failed: {e}")
             traceback.print_exc()
@@ -228,18 +241,19 @@ def predict():
             # Still continue to return result even if DB fails
 
     except Exception as e:
-        print(f"[ERROR] Analysis crash: {e}")
-        traceback.print_exc()
-        final_emo, final_conf, note = "Error", 0.0, f"System failure: {str(e)}"
+        full_err = traceback.format_exc()
+        print(f"[ERROR] Analysis crash: {full_err}")
+        final_emo, final_conf, note = "System Error", 0.0, f"Critical Failure: {str(e)}\n\nTraceback:\n{full_err}"
+        # If it's a critical crash, we still want to show the result page with the error note
     finally:
-        if os.path.exists(tmp_path): os.unlink(tmp_path)
+        if 'tmp_path' in locals() and os.path.exists(tmp_path): os.unlink(tmp_path)
         if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): 
             try: os.unlink(audio_path)
             except: pass
 
         # Prepare feat_hint for display
-        feat_hint = locals().get('raw_hint', "")
-        if not feat_hint and 'X' in locals() and len(X) > 0:
+        feat_hint = locals().get('raw_hint', "N/A")
+        if feat_hint == "N/A" and 'X' in locals() and len(X) > 0:
             feat_hint = ", ".join([f"{v:.2f}" for v in X[:5]]) 
             
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
