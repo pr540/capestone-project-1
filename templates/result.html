@@ -260,8 +260,10 @@
         <div style="font-weight: bold; color: #666;">Visual Emotion</div>
         <div style="color: #4B0082;">
           <b>{{ visual_emotion|upper }}</b>
-          {% if visual_emotion == 'happy' %}😊{% elif visual_emotion == 'sad' %}😢{% elif visual_emotion in ['ps', 'surprise']
-          %}🤩{% elif visual_emotion == 'neutral' %}😐{% endif %}
+          {% if visual_emotion == 'happy' %}😊{% elif visual_emotion == 'sad' %}😢{% elif visual_emotion in ['ps', 'surprise',
+          'pleasant surprise']
+          %}🤩{% elif visual_emotion == 'disgust' %}🤢{% elif visual_emotion == 'fear' %}😨{% elif visual_emotion == 'neutral'
+          %}😐{% endif %}
         </div>
       </div>
     </div>
