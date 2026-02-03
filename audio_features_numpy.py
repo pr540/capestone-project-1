@@ -106,3 +106,7 @@ def extract_features_combined(y, sr):
     chr_feat = np.mean(chroma_stft(s, sr=sr), axis=0)
     
     return np.hstack([chr_feat, mfcc_feat, mel_feat])
+
+def numpy_zcr(y):
+    # Standard Zero Crossing Rate: (1/T) * sum(|sign(x_t) - sign(x_t-1)|)
+    return np.mean(np.abs(np.diff(np.sign(y))) > 0)

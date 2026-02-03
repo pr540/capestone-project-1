@@ -12,17 +12,12 @@ except ImportError:
     imageio_ffmpeg = None
 
 try:
-    import librosa
-except ImportError:
-    librosa = None
-
-try:
     import joblib
 except ImportError:
     joblib = None
 
 from mlp_numpy import NumpyMLP
-from audio_features_numpy import extract_features_combined
+from audio_features_numpy import extract_features_combined, numpy_zcr
 
 detector = {}
 model = None
@@ -127,21 +122,7 @@ def analyze_video_faces(video_path):
     return str(dominant), float(confidence), stats
 
 def extract_audio_features(audio_data, sr):
-    """Definitive feature extraction function matching training script."""
-    # Strict normalization to match TESS profile
-    if np.max(np.abs(audio_data)) > 1e-6:
-        audio_data = audio_data / np.max(np.abs(audio_data))
-    
-    if librosa:
-        try:
-            stft_out = np.abs(librosa.stft(audio_data))
-            chr_f = np.mean(librosa.feature.chroma_stft(S=stft_out, sr=sr).T, axis=0)
-            mfc_f = np.mean(librosa.feature.mfcc(y=audio_data, sr=sr, n_mfcc=40).T, axis=0)
-            mel_f = np.mean(librosa.feature.melspectrogram(y=audio_data, sr=sr, n_mels=128).T, axis=0)
-            return np.hstack([chr_f, mfc_f, mel_f]).reshape(1, -1)
-        except Exception as e:
-            print(f"[WARN] Librosa extraction failed, falling back: {e}")
-            
+    """Definitive feature extraction using safe NumPy implementation."""
     return extract_features_combined(audio_data, sr).reshape(1, -1)
 
 def predict_audio_emotion(audio_data, sr):
@@ -177,8 +158,8 @@ def predict_audio_emotion(audio_data, sr):
                 label = str(m.predict(features))
             
             # Laughter Heuristic per chunk
-            zcr = np.mean(librosa.feature.zero_crossing_rate(chunk)) if librosa else 0.0
-            if label == 'fear' and zcr > 0.06:
+            zcr = numpy_zcr(chunk)
+            if label == 'fear' and zcr > 0.08: # Slightly higher threshold for numpy version
                 label = 'happy'
                 # Modify p to reflect correction
                 new_p = list(p)

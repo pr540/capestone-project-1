@@ -3,10 +3,6 @@ import subprocess
 import imageio_ffmpeg
 import tempfile
 import numpy as np
-try:
-    import librosa
-except ImportError:
-    librosa = None
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
 from werkzeug.utils import secure_filename
 from database import db, PredictionResult
@@ -56,8 +52,16 @@ app.config.update(
     TEMPLATES_AUTO_RELOAD=True
 )
 db.init_app(app)
-with app.app_context(): db.create_all()
-warmup()
+# Lazy initialization
+_initialized = False
+@app.before_request
+def initialize():
+    global _initialized
+    if not _initialized:
+        with app.app_context():
+            db.create_all()
+        warmup()
+        _initialized = True
 
 @app.route('/favicon.ico')
 def favicon():
