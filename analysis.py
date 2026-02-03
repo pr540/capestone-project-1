@@ -110,57 +110,60 @@ def analyze_video_faces(video_path):
     confidence = val / total if total > 0 else 0.0
     return str(dominant), float(confidence), stats
 
-def predict_audio_emotion(audio_data, sr):
-    m = get_model()
-    if not m: return "neutral", 0.0, [0]*len(emotions)
+def extract_audio_features(audio_data, sr):
+    """Definitive feature extraction function matching training script."""
+    # Strict normalization to match TESS profile
+    if np.max(np.abs(audio_data)) > 1e-6:
+        audio_data = audio_data / np.max(np.abs(audio_data))
     
-    # Accuracy safety: If signal is extremely low energy, it's silence
-    rms = np.sqrt(np.mean(audio_data**2))
-    if rms < 0.001: 
-        probs = [0.0] * len(emotions)
-        if 'neutral' in emotions:
-            probs[emotions.index('neutral')] = 1.0
-        return "neutral", 1.0, probs
-
-    try:
-        # Strict normalization to match TESS profile (high intensity)
-        if np.max(np.abs(audio_data)) > 1e-6:
-            audio_data = audio_data / np.max(np.abs(audio_data))
-        
-        # Heuristic: Laughter has high Zero Crossing Rate and Spectral Centroid
-        # If we detect specific laughter patterns, we'll suggest happy later
-        zcr = np.mean(librosa.feature.zero_crossing_rate(audio_data))
-        
-        # Use librosa if available for feature extraction to match training exactly
-        if librosa:
+    if librosa:
+        try:
             stft_out = np.abs(librosa.stft(audio_data))
             chr_f = np.mean(librosa.feature.chroma_stft(S=stft_out, sr=sr).T, axis=0)
             mfc_f = np.mean(librosa.feature.mfcc(y=audio_data, sr=sr, n_mfcc=40).T, axis=0)
             mel_f = np.mean(librosa.feature.melspectrogram(y=audio_data, sr=sr, n_mels=128).T, axis=0)
-            features = np.hstack([chr_f, mfc_f, mel_f]).reshape(1, -1)
-        else:
-            features = extract_features_combined(audio_data, sr).reshape(1, -1)
+            return np.hstack([chr_f, mfc_f, mel_f]).reshape(1, -1)
+        except Exception as e:
+            print(f"[WARN] Librosa extraction failed, falling back: {e}")
+            
+    return extract_features_combined(audio_data, sr).reshape(1, -1)
+
+def predict_audio_emotion(audio_data, sr):
+    m = get_model()
+    if not m: return "neutral", 0.0, [0]*len(emotions)
+    
+    rms = np.sqrt(np.mean(audio_data**2))
+    if rms < 0.001: 
+        probs = [0.0] * len(emotions)
+        probs[emotions.index('neutral')] = 1.0
+        return "neutral", 1.0, probs
+
+    try:
+        features = extract_audio_features(audio_data, sr)
+        zcr = np.mean(librosa.feature.zero_crossing_rate(audio_data)) if librosa else 0.0
         
-        # Standardize prediction call based on model type
         if hasattr(m, 'classes_'): # SKLearn / joblib
             probs = m.predict_proba(features)[0]
             pred = m.predict(features)[0]
             
-            # LAUGHTER BIAS FIX:
-            # If model says 'fear' with high confidence but ZCR is moderate (typical of laughter),
-            # check the 'happy' probability.
-            if pred == 'fear' and probs[2] > 0.8:
-                happy_idx = 3 # based on ['angry', 'disgust', 'fear', 'happy', ...]
-                if probs[3] > 0.001 or zcr > 0.05:
-                    # Potential laughter detected
-                    print(f"[INFO] Laughter heuristic triggered (ZCR: {zcr:.4f})")
+            # BIAS CORRECTION: Laughter (Happy) often misclassified as Fear
+            # emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
+            # fear = idx 2, happy = idx 3
+            if pred == 'fear' and probs[2] > 0.7:
+                if (len(probs) > 3 and probs[3] > 0.01) or zcr > 0.06:
+                    print(f"[INFO] Laughter bias correction: Fear -> Happy (ZCR: {zcr:.4f})")
+                    pred = 'happy'
+                    # Enhance happy confidence for the UI
+                    temp_probs = list(probs)
+                    temp_probs[3] = max(temp_probs[3], 0.6)
+                    probs = np.array(temp_probs)
         else: # Numpy fallback
             probs = m.predict_proba(features)[0]
             pred = m.predict(features)
             
         return str(pred), float(np.max(probs)), probs
     except Exception as e:
-        print(f"[ERROR] Audio prediction crash: {e}")
+        print(f"[ERROR] Audio prediction failed: {e}")
         return "neutral", 0.0, [0]*len(emotions)
 
 def warmup():
