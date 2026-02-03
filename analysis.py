@@ -137,7 +137,7 @@ def predict_audio_emotion(audio_data, sr):
     if max_val < 0.001: 
         probs = [0.0] * len(emotions)
         probs[emotions.index('neutral')] = 1.0
-        return "neutral", 1.0, probs
+        return "neutral", 1.0, probs, []
 
     try:
         # Segmented Analysis: Split into 3s chunks to catch peak emotions/laughter
@@ -183,7 +183,7 @@ def predict_audio_emotion(audio_data, sr):
 
     except Exception as e:
         print(f"[ERROR] Audio prediction failed: {e}")
-        return "neutral", 0.0, [0]*len(emotions)
+        return "neutral", 0.0, [0]*len(emotions), []
 
 def warmup():
     print("[INFO] Warmup (Static Mode)")
