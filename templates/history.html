@@ -69,11 +69,17 @@
             </div>
         </div>
 
-        <div class="text-center">
-            <a href="{{ url_for('prediction_page') }}" class="btn btn-primary px-5 py-2" style=<"border-radius: 50px;
-                background: #4B0082; border: none;">
+        <div class="text-center mt-4">
+            <a href="{{ url_for('prediction_page') }}" class="btn btn-primary px-5 py-2"
+                style="border-radius: 50px; background: #e8cd30; color: #111; border: none; font-weight: bold;">
                 <i class="fa fa-plus"></i> New Analysis
             </a>
+            <form action="/clear_history" method="POST" class="d-inline ml-2"
+                onsubmit="return confirm('Are you sure you want to clear all history?');">
+                <button type="submit" class="btn btn-danger px-4 py-2" style="border-radius: 50px;">
+                    <i class="fa fa-trash"></i> Clear History
+                </button>
+            </form>
         </div>
         </div>
         </div>

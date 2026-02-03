@@ -4,65 +4,129 @@
 <section class="predict-section">
     <div class="overlay-predict">
         <div class="upload-container">
-            <h1 class="text-white mb-4">Emotion Recognition</h1>
-            <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form about-card">
-                <label for="audio_file" class="form-label text-white">📁 Upload Audio or Video File</label>
-                <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="file-input">
-                <div class="file-info text-light">
-                    ✅ Supported formats: WAV, MP3, OGG, FLAC, M4A, MP4, AVI, MOV, MKV, WEBM<br>
-                    📊 Maximum file size: 4.5MB (Vercel limit)
-                </div>
-                <div id="file-size-display" class="file-size-display"></div>
-                <input type="submit" value="🎯 Predict Emotion" class="submit-btn">
+            <h1 class="text-white mb-4 text-center">Emotion Recognition</h1>
+            <div class="about-card p-4 rounded-lg shadow-lg">
+                <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
+                    <div class="upload-box mb-4">
+                        <label for="audio_file" class="custom-file-upload">
+                            <i class="fas fa-cloud-upload-alt"></i> <span>Choose Audio or Video File</span>
+                        </label>
+                        <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="d-none">
+                        <div id="file-name-display" class="file-name-display text-white mt-2 font-italic"></div>
+                    </div>
+                    <div class="file-info text-light mb-4 small">
+                        <div class="info-item"><i class="fas fa-check-circle text-success mr-2"></i> WAV, MP3, OGG, FLAC, M4A, MP4, AVI,
+                            MOV, MKV, WEBM</div>
+                        <div class="info-item"><i class="fas fa-info-circle text-warning mr-2"></i> Maximum file size: 4.5MB (Vercel limit)
+                        </div>
+                    </div>
+                    
+                    <div id="file-size-display" class="file-size-display mb-4"></div>
+                    
+                    <button type="submit" id="predict-btn" class="submit-btn w-100" disabled>
+                        <i class="fas fa-bullseye mr-2"></i> Predict Emotion
+                    </button>
                 </form>
-        </div>
+            </div>
+            </div>
     </div>
-    </section>
+</section>
 
-    <script>
-        // Display file size when selected
+<style>
+    .custom-file-upload {
+        display: block;
+        padding: 15px 25px;
+        cursor: pointer;
+        background: rgba(232, 205, 48, 0.2);
+        color: #e8cd30;
+        border: 2px dashed #e8cd30;
+        border-radius: 10px;
+        text-align: center;
+        transition: all 0.3s ease;
+        font-weight: bold;
+    }
+
+    .custom-file-upload:hover {
+        background: rgba(232, 205, 48, 0.3);
+        transform: scale(1.02);
+    }
+
+    .file-name-display {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 8px 15px;
+        border-radius: 5px;
+        text-align: center;
+        display: none;
+    }
+
+    .info-item {
+        margin-bottom: 5px;
+    }
+
+    .submit-btn {
+        background: #e8cd30;
+        color: #111;
+        border: none;
+        padding: 15px;
+        border-radius: 8px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .submit-btn:enabled {
+        opacity: 1;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(232, 205, 48, 0.4);
+    }
+
+    .submit-btn:enabled:hover {
+        background: #f8db40;
+        transform: translateY(-2px);
+    }
+</style>
+
+<script>
+        // Display file info and enable predict button when selected
         document.getElementById('audio_file').addEventListener('change', function (e) {
             const file = e.target.files[0];
-            const display = document.getElementById('file-size-display');
+        const nameDisplay = document.getElementById('file-name-display');
+        const sizeDisplay = document.getElementById('file-size-display');
+        const predictBtn = document.getElementById('predict-btn');
 
-            if (file) {
-                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                const maxSizeMB = 4.5; // Vercel limit
+        if (file) {
+            nameDisplay.innerHTML = `<i class="fas fa-file-alt mr-2"></i> ${file.name}`;
+            nameDisplay.style.display = 'block';
+            
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            const maxSizeMB = 4.5; // Vercel limit
 
-                display.style.display = 'block';
-
-                if (sizeMB > maxSizeMB) {
-                    display.style.color = 'red';
-                    display.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB}MB`;
-                } else {
-                    display.style.color = 'green';
-                    display.innerHTML = `✅ File size: ${sizeMB}MB - Ready to upload`;
-                }
+            if (sizeMB > maxSizeMB) {
+                sizeDisplay.style.color = '#ff4d4d';
+                sizeDisplay.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB}MB`;
+                predictBtn.disabled = true;
             } else {
-                display.style.display = 'none';
+                sizeDisplay.style.color = '#4dff4d';
+                sizeDisplay.innerHTML = `✅ File size: ${sizeMB}MB - Ready for analysis`;
+                predictBtn.disabled = false;
             }
-        });
+        } else {
+            nameDisplay.style.display = 'none';
+            sizeDisplay.innerHTML = '';
+            predictBtn.disabled = true;
+        }
+    });
 
-        // Validate before submit and show loading state
+        // Handle form submission with loading state
         document.getElementById('prediction-form').addEventListener('submit', function (e) {
-            const file = document.getElementById('audio_file').files[0];
-            if (file) {
-                const sizeMB = file.size / (1024 * 1024);
-                if (sizeMB > 4.5) { // Vercel limit
-                    e.preventDefault();
-                    alert('File is too large! Vercel limits uploads to 4.5MB. Your file is ' + sizeMB.toFixed(2) + 'MB');
-                    return false;
-                }
-            }
-
-            // Show loading state
-            const btn = document.querySelector('.submit-btn');
-            btn.value = '⏳ Processing... Please wait';
-            btn.style.opacity = '0.7';
-            btn.style.cursor = 'wait';
-            // We don't disable immediately to ensure form submission happens, 
-            // but we change the text to deter re-clicks.
-        });
+        const btn = document.getElementById('predict-btn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Analyzing... Please wait';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+    });
     </script>
-    <br><br><br>
+<br><br><br>
 {% endblock %}

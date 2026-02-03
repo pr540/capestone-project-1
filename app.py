@@ -13,9 +13,13 @@ from database import db, PredictionResult
 from utils import allowed_file, is_video_file, extract_audio_from_video
 from analysis import analyze_video_faces, predict_audio_emotion, warmup
 
+from concurrent.futures import ThreadPoolExecutor
+import time
+
 # App Setup
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url_path='/static')
+executor = ThreadPoolExecutor(max_workers=2)
 
 # Use /tmp for SQLite on Vercel since the root is read-only
 if os.environ.get('VERCEL'):
@@ -25,7 +29,7 @@ else:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 app.config.update(
-    MAX_CONTENT_LENGTH=100 * 1024 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=100 * 1024 * 1024, # 100MB limit (Vercel actual limit is lower)
     SQLALCHEMY_DATABASE_URI=f'sqlite:///{db_path}',
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     TEMPLATES_AUTO_RELOAD=True
@@ -47,10 +51,24 @@ def about(): return render_template('about.html', title="About")
 
 @app.route('/prediction_page')
 def prediction_page(): return render_template('prediction.html', title="Predict")
+
 @app.route('/analyze')
 def analyze():
-    preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).all()
+    # Limit to 50 for 'fast' store loading
+    preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(50).all()
     return render_template('history.html', predictions=preds, title="History")
+
+@app.route('/clear_history', methods=['POST'])
+def clear_history():
+    try:
+        PredictionResult.query.delete()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error clearing history: {e}")
+    return redirect('/analyze')
+
+from flask import redirect
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -65,22 +83,30 @@ def predict():
         tmp_path = tmp.name
 
     try:
+        start_time = time.time()
         vis_emo, vis_conf = None, 0.0
         audio_path = tmp_path
+        
+        # Parallel analysis for speed
+        future_vis = None
         if is_video_file(file.filename):
-            vis_emo, vis_conf = analyze_video_faces(tmp_path)
+            future_vis = executor.submit(analyze_video_faces, tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        # Load audio using ffmpeg to avoid librosa dependency
+        # Load audio using ffmpeg - limit to 10s for 'fast' processing
         sr = 22050
         cmd = [
-            imageio_ffmpeg.get_ffmpeg_exe(), '-i', audio_path,
+            imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
+            '-ss', '0', '-t', '10', # Fast extraction: first 10 seconds
             '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         out, _ = process.communicate()
         X = np.frombuffer(out, dtype=np.float32)
         
+        if future_vis:
+            vis_emo, vis_conf = future_vis.result()
+
         if len(X) == 0:
              audio_emo, au_conf, note = "Silent/Error", 0.0, "Could not extract audio"
              final_emo, final_conf = vis_emo or "N/A", vis_conf
@@ -97,15 +123,13 @@ def predict():
             else:
                 # Weighted Fusion / Priority
                 if vis_emo:
-                    # Trap Emotions: 'disgust' and 'Pleasant Surprise' are common model biases on noisy data
-                    trap_emotions = ["disgust", "Pleasant Surprise"]
+                    # Trap Emotions: 'disgust' and 'ps' are common model biases on noisy data
+                    trap_emotions = ["disgust", "ps", "Pleasant Surprise"]
                     
                     if audio_emo in trap_emotions and au_conf > 0.8:
-                        # If audio is stuck in a trap, but visual actually found a face with an emotion
                         if vis_emo != "neutral" and vis_conf > 0.3:
                             final_emo, final_conf, note = vis_emo, vis_conf, f"Visual ({vis_emo}) overrides biased audio ({audio_emo})"
                         elif vis_emo == "neutral" and vis_conf > 0.5:
-                            # If visual is confident it's neutral, trust it over a 'disgust' audio trap
                             final_emo, final_conf, note = "neutral", (vis_conf + au_conf)/2, "Visual neutral overrides audio bias"
                         else:
                             final_emo, final_conf, note = audio_emo, au_conf, "Audio prioritized (weak visual signal)"
@@ -114,14 +138,15 @@ def predict():
                     else:
                         final_emo, final_conf, note = audio_emo, au_conf, "Based on audio evidence"
                 else:
-                    # Audio-only
                     final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
-                    if audio_emo == "disgust" and au_conf > 0.99:
-                         note += " (Potential bias detected)"
-        # Save to DB
+
+        # Fast DB Storage
         res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
                                visual_emotion=vis_emo or "N/A", final_emotion=final_emo, confidence=final_conf)
-        db.session.add(res); db.session.commit()
+        db.session.add(res)
+        db.session.commit()
+        
+        print(f"[INFO] Analysis completed in {time.time() - start_time:.2f}s")
 
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
                              visual_emotion=vis_emo, audio_emotion=audio_emo, note=note)
