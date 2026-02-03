@@ -32,13 +32,12 @@ LABEL_MAP = {
     'surprise': 'Surprise'
 }
 
-
 # App Setup
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'), static_url_path='/static')
 executor = ThreadPoolExecutor(max_workers=2)
 
-# Use /tmp for SQLite on Vercel since the root is read-only
+# Use /tmp for SQLite on Vercel
 if os.environ.get('VERCEL'):
     db_path = '/tmp/emotions.db'
 else:
@@ -46,22 +45,11 @@ else:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 app.config.update(
-    MAX_CONTENT_LENGTH=100 * 1024 * 1024, # 100MB limit (Vercel actual limit is lower)
+    MAX_CONTENT_LENGTH=50 * 1024 * 1024, # 50MB
     SQLALCHEMY_DATABASE_URI=f'sqlite:///{db_path}',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    TEMPLATES_AUTO_RELOAD=True
+    SQLALCHEMY_TRACK_MODIFICATIONS=False
 )
 db.init_app(app)
-# Lazy initialization
-_initialized = False
-@app.before_request
-def initialize():
-    global _initialized
-    if not _initialized:
-        with app.app_context():
-            db.create_all()
-        warmup()
-        _initialized = True
 
 @app.route('/favicon.ico')
 def favicon():
@@ -79,20 +67,12 @@ def prediction_page(): return render_template('prediction.html', title="Predict"
 
 @app.route('/analyze')
 def analyze():
-    # Limit to 50 for 'fast' store loading
-    preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(50).all()
-    return render_template('history.html', predictions=preds, title="History")
-
-@app.route('/clear_history', methods=['POST'])
-def clear_history():
     try:
-        PredictionResult.query.delete()
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error clearing history: {e}")
-    return redirect('/analyze')
-
+        with app.app_context(): db.create_all()
+        preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(50).all()
+    except:
+        preds = []
+    return render_template('history.html', predictions=preds, title="History")
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -100,46 +80,52 @@ def predict():
     file = request.files['audio_file']
     if not file or not allowed_file(file.filename): return jsonify({'error': 'Invalid file'}), 400
 
-    # Initialize variables with safe defaults
-    final_emo, final_conf, note = "neutral", 0.0, "Processing..."
+    # Safe defaults
+    final_emo, final_conf, note = "neutral", 0.0, "Analysis Complete"
     audio_emo, vis_emo = "Unknown", "N/A"
     all_emotions_data = []
     audio_segments = []
+    vis_stats = {}
     probs = [0.0] * len(EMOTIONS_ORDER)
     X = np.array([])
     sr = 22050
+    raw_hint = "N/A"
+    tmp_path = None
 
-    # Help find where it fails
     try:
-        # 1. Save file to /tmp/ if on Vercel
+        # DB ensure
+        try:
+            with app.app_context(): db.create_all()
+        except: pass
+
+        # Load model lazily
+        try: warmup()
+        except: pass
+
+        # Save to /tmp
         temp_dir = "/tmp" if os.environ.get('VERCEL') else None
         ext = os.path.splitext(file.filename)[1]
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir=temp_dir) as tmp:
             file.save(tmp.name)
             tmp_path = tmp.name
 
-        start_time = time.time()
         audio_path = tmp_path
         
-        # Parallel analysis for speed
+        # Process sequential for Vercel stability
         if is_video_file(file.filename):
             try:
-                future_vis = executor.submit(analyze_video_faces, tmp_path)
+                vis_emo, vis_conf, vis_stats = analyze_video_faces(tmp_path)
                 audio_path = extract_audio_from_video(tmp_path)
             except Exception as e:
-                print(f"[WARN] Video processing failed: {e}")
-                future_vis = None
-        else:
-            future_vis = None
+                print(f"[WARN] Video failed: {e}")
         
+        # Audio extraction
         try:
-            # Safe ffmpeg detection
             try:
                 ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
             except:
                 ffmpeg_exe = "ffmpeg"
 
-            # Prepare audio stream
             cmd = [
                 ffmpeg_exe, '-y', '-i', audio_path,
                 '-t', '15',
@@ -149,22 +135,9 @@ def predict():
             out, _ = process.communicate()
             if out:
                 X = np.frombuffer(out, dtype=np.float32)
-            else:
-                X = np.array([])
             
-            if future_vis:
-                try:
-                    vis_emo, vis_conf, vis_stats = future_vis.result(timeout=10)
-                except Exception as e:
-                    print(f"[WARN] Vision result timeout/fail: {e}")
-                    vis_emo, vis_conf, vis_stats = "N/A", 0.0, {}
-
-            if len(X) < 500:
-                 audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short"
-                 final_emo, final_conf = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf
-            else:
+            if len(X) >= 500:
                 rms = np.sqrt(np.mean(X**2))
-                # Unpack safely
                 res_audio = predict_audio_emotion(X, sr)
                 if len(res_audio) == 4:
                     audio_emo, au_conf, probs, audio_segments = res_audio
@@ -173,107 +146,65 @@ def predict():
                     audio_segments = []
 
                 if rms < 0.002:
-                    if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual analysis (Audio is silent)"
+                    if vis_emo != 'N/A' and vis_conf > 0.05:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual only (Silent audio)"
                     else:
                         final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
                 else:
-                    # Dynamic Weighted Fusion
-                    if vis_emo and vis_emo != 'N/A' and vis_conf > 0.05:
-                        if audio_emo == 'neutral' and vis_emo != 'neutral':
-                            final_emo, final_conf, note = vis_emo, vis_conf, "Expressive visual over neutral audio"
-                        elif au_conf > 0.98: 
-                            final_emo, final_conf, note = audio_emo, au_conf, f"Strong audio {audio_emo}"
-                        elif vis_conf > au_conf + 0.1:
+                    if vis_emo != 'N/A' and vis_conf > 0.05:
+                        if vis_conf > au_conf + 0.1:
                             final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
                         else:
-                            final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritized"
+                            final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritization"
                     else:
                         final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
-                
-                # Signal Fingerprint extraction
-                try:
-                    from audio_features_numpy import extract_features_combined
-                    feats = extract_features_combined(X, sr)
-                    raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]])
-                except:
-                    raw_hint = "Fingerprint error"
-        except Exception as e:
-            print(f"[ERROR] Inner prediction loop failed: {e}")
-            traceback.print_exc()
-            final_emo, final_conf, note = "Error", 0.0, f"Analysis Error: {str(e)}"
+            else:
+                final_emo, final_conf, note = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf, "Short/Silent clip"
 
-        # Prepare all emotions for breakdown
-        probs_list = list(probs) if 'probs' in locals() and probs is not None else []
-        
+        except Exception as e:
+            note = f"Audio engine error: {str(e)}"
+
+        # Prepare breakdown
+        p_list = list(probs)
         for i, emo_id in enumerate(EMOTIONS_ORDER):
-            prob = 0.0
-            if i < len(probs_list):
-                prob = float(probs_list[i])
-            elif 'vis_emo' in locals() and vis_emo == emo_id:
-                # If audio is silent, but visual detected this emotion
-                prob = 1.0 
-            
+            p = float(p_list[i]) if i < len(p_list) else (1.0 if vis_emo == emo_id else 0.0)
             all_emotions_data.append({
                 'id': emo_id, 
                 'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
                 'emoji': EMOJI_MAP.get(emo_id, '❓'), 
-                'prob': round(prob * 100, 1)
+                'prob': round(p * 100, 1)
             })
-        all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
+        all_emotions_data.sort(key=lambda x: x['prob'], reverse=True)
 
-        # DB Storage with explicit validation
+        # Store in DB
         try:
-            # Ensure emotions are strings and not numpy objects
-            db_audio = str(audio_emo) if audio_emo else "Unknown"
-            db_visual = str(vis_emo) if vis_emo else "N/A"
-            db_final = str(final_emo) if final_emo else "neutral"
-            
             res = PredictionResult(
                 filename=secure_filename(file.filename), 
-                audio_emotion=db_audio,
-                visual_emotion=db_visual, 
-                final_emotion=db_final, 
+                audio_emotion=str(audio_emo), 
+                visual_emotion=str(vis_emo), 
+                final_emotion=str(final_emo), 
                 confidence=float(final_conf)
             )
             db.session.add(res)
             db.session.commit()
-            print(f"[INFO] Analysis completed and stored in DB. ID: {res.id}")
-        except Exception as e:
-            print(f"[ERROR] DB Save failed: {e}")
-            db.session.rollback()
-            # Still continue to return result even if DB fails
+        except: pass
 
     except Exception as e:
-        full_err = traceback.format_exc()
-        print(f"[ERROR] Analysis crash: {full_err}")
-        final_emo, final_conf, note = "System Error", 0.0, f"Critical Failure: {str(e)}\n\nTraceback:\n{full_err}"
-        # If it's a critical crash, we still want to show the result page with the error note
+        note = f"Critical Failure: {str(e)}"
     finally:
-        if 'tmp_path' in locals() and os.path.exists(tmp_path): os.unlink(tmp_path)
-        if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path): 
+        if tmp_path and os.path.exists(tmp_path): os.unlink(tmp_path)
+        if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path):
             try: os.unlink(audio_path)
             except: pass
 
-        # Prepare feat_hint for display
-        feat_hint = locals().get('raw_hint', "N/A")
-        if feat_hint == "N/A" and 'X' in locals() and len(X) > 0:
-            feat_hint = ", ".join([f"{v:.2f}" for v in X[:5]]) 
-            
+    # Last resort rendering safety
+    try:
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
                              visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
-                             all_emotions=all_emotions_data, vis_stats=locals().get('vis_stats', {}),
-                             feat_hint=feat_hint, audio_segments=locals().get('audio_segments', []))
+                             all_emotions=all_emotions_data, vis_stats=vis_stats,
+                             feat_hint=raw_hint, audio_segments=audio_segments)
+    except Exception as e:
+        return f"Template Error: {str(e)}", 500
 
 if __name__ == '__main__':
-    try:
-        import socket
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        print(f" * Running on http://{local_ip}:50005 (Press CTRL+C to quit)")
-    except Exception:
-        print(" * Could not determine local IP")
-    
-    app.run(host='0.0.0.0', debug=False, port=50005)
+    app.run(host='0.0.0.0', debug=True, port=50005)

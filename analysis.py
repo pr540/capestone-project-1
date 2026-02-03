@@ -51,27 +51,28 @@ def get_detector():
 def get_model():
     global model
     if model is None:
-        # Priority 1: Original PKL model (most accurate)
+        # Priority 1: Numpy fallback (Most compatible with Vercel)
+        try:
+            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp_weights.npz')
+            if os.path.exists(model_path):
+                model = NumpyMLP(model_path)
+                print("[INFO] Loaded NumpyMLP (Production Mode).")
+                return model
+        except Exception as e:
+            print(f"[ERROR] Loading NumpyMLP failed: {e}")
+
+        # Priority 2: Original PKL model
         if joblib:
             try:
                 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp.pkl')
                 if os.path.exists(model_path):
                     model = joblib.load(model_path)
-                    print("[INFO] Loaded original PKL model.")
+                    print("[INFO] Loaded PKL model.")
                     return model
             except Exception as e:
                 print(f"[WARN] Loading PKL failed: {e}")
         
-        # Priority 2: Numpy fallback
-        try:
-            model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mlp_weights.npz')
-            if os.path.exists(model_path):
-                model = NumpyMLP(model_path)
-                print("[INFO] Fallback to NumpyMLP.")
-            else:
-                print("[ERROR] No model weights found!")
-        except Exception as e:
-            print(f"[ERROR] Loading NumpyMLP failed: {e}")
+        print("[ERROR] No model weights found in any format!")
     return model
 
 def analyze_video_faces(video_path):
