@@ -164,28 +164,40 @@ def predict_audio_emotion(audio_data, sr):
                 label = str(m.predict(features))
             
             # Feature Correction: Disgust/Sad often confused for Happy by the model
-            # Happy = High Energy + High ZCR. Disgust/Sad = Low Energy + Low ZCR.
+            # Happy = High Energy + High ZCR (Laughter). Disgust/Sad = Low ZCR.
             if label == 'happy':
                 try:
                     zcr = numpy_zcr(chunk)
                     rms = np.sqrt(np.mean(chunk**2))
-                    # Thresholds: ZCR < 0.05 is usually speech/grunt, not laughter
-                    if zcr < 0.04: 
+                    
+                    # Aggressive filter: Real laughter usually has ZCR > 0.1
+                    # If ZCR is lower, it's likely speech/grunt (Disgust) or crying (Sad)
+                    if zcr < 0.09: 
                          if rms < 0.005: 
                              label = 'sad'
-                             # Manual probability adjust
-                             p = np.zeros_like(p); p[6] = 0.8 # sad index
+                             p = np.zeros_like(p)
+                             p[6] = 0.9
                          else:
                              label = 'disgust'
-                             p = np.zeros_like(p); p[1] = 0.8 # disgust index
+                             p = np.zeros_like(p)
+                             p[1] = 0.9
                 except: pass
                 
             chunk_results.append((label, p))
-
+            
         # Decision: Pick the most "expressive" chunk (not neutral if others exist)
+        # But prevent 'happy' from dominating if other negative emotions exist
         non_neutral = [r for r in chunk_results if r[0] != 'neutral']
+        
+        # Check if we have conflicting strong emotions
+        negatives = [r for r in non_neutral if r[0] in ['disgust', 'sad', 'fear', 'angry']]
+        if negatives:
+             # If we have valid negative segments, prefer them over happy
+             final_r = max(negatives, key=lambda x: np.max(x[1]))
+             return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
+        
+        # Default fallback
         if non_neutral:
-            # Pick the one with highest confidence
             final_r = max(non_neutral, key=lambda x: np.max(x[1]))
             return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
         else:
