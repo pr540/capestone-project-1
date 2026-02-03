@@ -148,16 +148,17 @@ def predict():
                         final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
 
             # Prepare all emotions for breakdown
-            emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
-            emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢', 'surprise':'😲'}
+            emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
+            emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢'}
             label_map = {'ps': 'Pleasant Surprise'}
             
             for i, emo_id in enumerate(emotions_order):
-                prob = float(probs[i])
-                all_emotions_data.append({
-                    'id': emo_id, 'name': label_map.get(emo_id, emo_id).capitalize(),
-                    'emoji': emoji_map.get(emo_id, '❓'), 'prob': round(prob * 100, 1)
-                })
+                if i < len(probs):
+                    prob = float(probs[i])
+                    all_emotions_data.append({
+                        'id': emo_id, 'name': label_map.get(emo_id, emo_id).capitalize(),
+                        'emoji': emoji_map.get(emo_id, '❓'), 'prob': round(prob * 100, 1)
+                    })
             all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
 
         # DB Storage
@@ -181,9 +182,15 @@ def predict():
             try: os.unlink(audio_path)
             except: pass
 
-    return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
-                         visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
-                         all_emotions=all_emotions_data)
+        # Feature hint for the UI to show path differences
+        feat_hint = ""
+        if 'probs' in locals() and len(X) > 0:
+            feat_hint = ", ".join([f"{v:.2f}" for v in X[:5]]) # First 5 samples
+            
+        return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
+                             visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
+                             all_emotions=all_emotions_data, vis_stats=locals().get('vis_stats', {}),
+                             feat_hint=feat_hint)
 
 if __name__ == '__main__':
     try:

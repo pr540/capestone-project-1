@@ -13,7 +13,7 @@ except ImportError:
 
 detector = {}
 model = None
-emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad', 'surprise']
+emotions = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
 
 def get_detector():
     global detector
