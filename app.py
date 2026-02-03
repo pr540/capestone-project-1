@@ -12,10 +12,29 @@ from werkzeug.utils import secure_filename
 from database import db, PredictionResult
 from utils import allowed_file, is_video_file, extract_audio_from_video
 from analysis import analyze_video_faces, predict_audio_emotion, warmup
-
 from concurrent.futures import ThreadPoolExecutor
 import time
 import traceback
+from audio_features_numpy import extract_features_combined
+
+# Standard Emotion Set
+EMOTIONS_ORDER = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
+EMOJI_MAP = {
+    'angry': '😠',
+    'disgust': '🤢',
+    'fear': '😨',
+    'happy': '😊',
+    'neutral': '😐',
+    'ps': '🤩',
+    'Pleasant Surprise': '🤩',
+    'surprise': '😲',
+    'sad': '😢'
+}
+LABEL_MAP = {
+    'ps': 'Pleasant Surprise',
+    'Pleasant Surprise': 'Pleasant Surprise',
+    'surprise': 'Surprise'
+}
 
 
 # App Setup
@@ -140,32 +159,49 @@ def predict():
             # Unique Fingerprint using MFCCs
             from audio_features_numpy import extract_features_combined
             feats = extract_features_combined(X, sr)
-            feat_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]]) 
+            # Use small subset of features for fingerprint
+            raw_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]]) 
 
             # Prepare all emotions for breakdown
-            emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
-            emoji_map = {'angry':'😠', 'disgust':'🤢', 'fear':'😨', 'happy':'😊', 'neutral':'😐', 'ps':'🤩', 'sad':'😢'}
-            label_map = {'ps': 'Pleasant Surprise'}
+            probs_list = list(probs) if 'probs' in locals() and probs is not None else []
             
-            for i, emo_id in enumerate(emotions_order):
-                if i < len(probs):
-                    prob = float(probs[i])
-                    all_emotions_data.append({
-                        'id': emo_id, 'name': label_map.get(emo_id, emo_id).capitalize(),
-                        'emoji': emoji_map.get(emo_id, '❓'), 'prob': round(prob * 100, 1)
-                    })
+            for i, emo_id in enumerate(EMOTIONS_ORDER):
+                prob = 0.0
+                if i < len(probs_list):
+                    prob = float(probs_list[i])
+                elif 'vis_emo' in locals() and vis_emo == emo_id:
+                    # If audio is silent, but visual detected this emotion
+                    prob = 1.0 
+                
+                all_emotions_data.append({
+                    'id': emo_id, 
+                    'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
+                    'emoji': EMOJI_MAP.get(emo_id, '❓'), 
+                    'prob': round(prob * 100, 1)
+                })
             all_emotions_data = sorted(all_emotions_data, key=lambda x: x['prob'], reverse=True)
 
-        # DB Storage
+        # DB Storage with explicit validation
         try:
-            res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=audio_emo,
-                                   visual_emotion=str(vis_emo or "N/A"), final_emotion=final_emo, confidence=final_conf)
+            # Ensure emotions are strings and not numpy objects
+            db_audio = str(audio_emo) if audio_emo else "Unknown"
+            db_visual = str(vis_emo) if vis_emo else "N/A"
+            db_final = str(final_emo) if final_emo else "neutral"
+            
+            res = PredictionResult(
+                filename=secure_filename(file.filename), 
+                audio_emotion=db_audio,
+                visual_emotion=db_visual, 
+                final_emotion=db_final, 
+                confidence=float(final_conf)
+            )
             db.session.add(res)
             db.session.commit()
-            print(f"[INFO] Analysis completed in {time.time() - start_time:.2f}s")
+            print(f"[INFO] Analysis completed and stored in DB. ID: {res.id}")
         except Exception as e:
             print(f"[ERROR] DB Save failed: {e}")
             db.session.rollback()
+            # Still continue to return result even if DB fails
 
     except Exception as e:
         print(f"[ERROR] Analysis crash: {e}")
@@ -177,10 +213,10 @@ def predict():
             try: os.unlink(audio_path)
             except: pass
 
-        # Feature hint for the UI to show path differences
-        feat_hint = ""
-        if 'probs' in locals() and len(X) > 0:
-            feat_hint = ", ".join([f"{v:.2f}" for v in X[:5]]) # First 5 samples
+        # Prepare feat_hint for display
+        feat_hint = locals().get('raw_hint', "")
+        if not feat_hint and 'X' in locals() and len(X) > 0:
+            feat_hint = ", ".join([f"{v:.2f}" for v in X[:5]]) 
             
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
                              visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,

@@ -77,8 +77,11 @@ def analyze_video_faces(video_path):
     if detected_faces == 0: return "N/A", 0.0, stats
     
     dominant = max(stats, key=stats.get)
-    confidence = stats[dominant] / sum(stats.values()) if sum(stats.values()) > 0 else 0.0
-    return dominant, confidence, stats
+    if dominant == 'surprise':
+        dominant = 'ps' # Map to Pleasant Surprise to match audio model
+    
+    confidence = stats.get(dominant, 0) / sum(stats.values()) if sum(stats.values()) > 0 else 0.0
+    return str(dominant), float(confidence), stats
 
 def predict_audio_emotion(audio_data, sr):
     m = get_model()

@@ -96,7 +96,7 @@
     {% if predicted_emotion == 'angry' %}
     <div class="emotion-emoji">😠</div>
     <div class="emotion-name">Angry</div>
-    <div class="emotion-description">The speakers's voice and facial patterns indicate frustration or anger</div>
+    <div class="emotion-description">The system detected patterns of frustration or anger in the signal</div>
     {% elif predicted_emotion == 'disgust' %}
     <div class="emotion-emoji">🤢</div>
     <div class="emotion-name">Disgust</div>
@@ -108,27 +108,27 @@
     {% elif predicted_emotion == 'happy' %}
     <div class="emotion-emoji">😊</div>
     <div class="emotion-name">Happy</div>
-    <div class="emotion-description">The speaker appears to be expressing happiness or joy</div>
+    <div class="emotion-description">The subject appears to be expressing happiness or joy</div>
     {% elif predicted_emotion == 'neutral' %}
     <div class="emotion-emoji">😐</div>
     <div class="emotion-name">Neutral</div>
-    <div class="emotion-description">The speaker appears to be expressing a neutral emotion</div>
+    <div class="emotion-description">The signal indicates a calm, neutral emotional state</div>
     {% elif predicted_emotion in ['ps', 'Pleasant Surprise'] %}
     <div class="emotion-emoji">🤩</div>
     <div class="emotion-name">Pleasant Surprise</div>
-    <div class="emotion-description">The speaker appears to be expressing pleasant surprise</div>
-    {% elif predicted_emotion == 'surprise' %}
+    <div class="emotion-description">The subject appears to be expressing joyful surprise</div>
+    {% elif predicted_emotion in ['surprise', '😲'] %}
     <div class="emotion-emoji">😲</div>
     <div class="emotion-name">Surprise</div>
-    <div class="emotion-description">The speaker appears to be expressing surprise</div>
+    <div class="emotion-description">The subject appears to be expressing surprise</div>
     {% elif predicted_emotion == 'sad' %}
     <div class="emotion-emoji">😢</div>
     <div class="emotion-name">Sad</div>
-    <div class="emotion-description">The speaker appears to be expressing sadness</div>
+    <div class="emotion-description">The analysis indicates an expression of sadness</div>
     {% else %}
     <div class="emotion-emoji">🤔</div>
-    <div class="emotion-name">{{ predicted_emotion }}</div>
-    <div class="emotion-description">Emotion detected</div>
+    <div class="emotion-name">{{ predicted_emotion.capitalize() if predicted_emotion else 'Unknown' }}</div>
+    <div class="emotion-description">Result of composite emotion analysis</div>
     {% endif %}
 
     <div class="mt-4 p-4 bg-light border rounded text-left" style="background: rgba(255,255,255,0.9) !important;">
@@ -226,7 +226,11 @@
       <div>
         <div style="font-size: 1.5rem;">📷</div>
         <div style="font-weight: bold; color: #666;">Visual Emotion</div>
-        <div style="color: #4B0082;">{{ visual_emotion|upper }}</div>
+        <div style="color: #4B0082;">
+          <b>{{ visual_emotion|upper }}</b>
+          {% if visual_emotion == 'happy' %}😊{% elif visual_emotion == 'sad' %}😢{% elif visual_emotion in ['ps', 'surprise']
+          %}🤩{% elif visual_emotion == 'neutral' %}😐{% endif %}
+        </div>
       </div>
     </div>
     {% endif %}
