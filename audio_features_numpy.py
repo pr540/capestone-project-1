@@ -94,15 +94,15 @@ def extract_features_combined(y, sr):
     s = stft(y)
     m = melspectrogram(s, sr=sr)
     
-    # Use dB conversion with dynamic reference (peak)
-    # This prevents absolute volume from biasing the results
-    ref = np.max(m)
-    db_m = 10.0 * np.log10(np.maximum(m, 1e-10) / (ref + 1e-10))
-    # Standard speech range is usually -80dB to 0dB relative to peak
-    db_m = np.clip(db_m, -80, 0)
+    # MFCC extraction (usually uses log power with fixed ref=1.0)
+    # This matches librosa.power_to_db(melspectrogram)
+    log_m = 10.0 * np.log10(np.maximum(m, 1e-10))
+    mfcc_feat = np.mean(mfcc_from_db(log_m), axis=0)
     
+    # Mel features (original training script uses linear power mean)
+    mel_feat = np.mean(m, axis=0)
+    
+    # Chroma features (from linear magnitude STFT)
     chr_feat = np.mean(chroma_stft(s, sr=sr), axis=0)
-    mfcc_feat = np.mean(mfcc_from_db(db_m), axis=0)
-    mel_feat = np.mean(db_m, axis=0)
     
     return np.hstack([chr_feat, mfcc_feat, mel_feat])

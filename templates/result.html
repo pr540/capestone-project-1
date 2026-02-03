@@ -91,18 +91,20 @@
   <h1 class="result-title">🎭 Emotion Detection Result</h1>
 
   <div class="emotion-display">
+    <div class="small text-muted mb-2 text-uppercase font-weight-bold" style="letter-spacing: 1px;">Combined Final Decision
+    </div>
     {% if predicted_emotion == 'angry' %}
     <div class="emotion-emoji">😠</div>
     <div class="emotion-name">Angry</div>
-    <div class="emotion-description">The speaker appears to be expressing anger or frustration</div>
+    <div class="emotion-description">The speakers's voice and facial patterns indicate frustration or anger</div>
     {% elif predicted_emotion == 'disgust' %}
     <div class="emotion-emoji">🤢</div>
     <div class="emotion-name">Disgust</div>
-    <div class="emotion-description">The speaker appears to be expressing disgust or distaste</div>
+    <div class="emotion-description">The analysis suggests an expression of discomfort or distaste</div>
     {% elif predicted_emotion == 'fear' %}
     <div class="emotion-emoji">😨</div>
     <div class="emotion-name">Fear</div>
-    <div class="emotion-description">The speaker appears to be expressing fear or anxiety</div>
+    <div class="emotion-description">The system detected patterns of anxiety or fear</div>
     {% elif predicted_emotion == 'happy' %}
     <div class="emotion-emoji">😊</div>
     <div class="emotion-name">Happy</div>
