@@ -99,11 +99,11 @@ def predict():
             future_vis = executor.submit(analyze_video_faces, tmp_path)
             audio_path = extract_audio_from_video(tmp_path)
         
-        # Load audio using ffmpeg - limit to 10s for 'fast' processing
+        # Prepare audio stream - skip first 0.5s of potential silence
         sr = 22050
         cmd = [
             imageio_ffmpeg.get_ffmpeg_exe(), '-y', '-i', audio_path,
-            '-ss', '0', '-t', '10', # Fast extraction: first 10 seconds
+            '-ss', '0.5', '-t', '15', # Skip 0.5s, Take 15s
             '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -113,39 +113,39 @@ def predict():
         if future_vis:
             vis_emo, vis_conf, vis_stats = future_vis.result()
 
-        if len(X) == 0:
-             audio_emo, au_conf, note = "Silent/Error", 0.0, "Could not extract audio"
-             final_emo, final_conf = vis_emo or "N/A", vis_conf
+        if len(X) < 1000: # Signal too short
+             audio_emo, au_conf, note = "Silent/Short", 0.0, "Audio stream too short or silent"
+             final_emo, final_conf = vis_emo or "neutral", vis_conf
         else:
             rms = np.sqrt(np.mean(X**2))
             audio_emo, au_conf, probs = predict_audio_emotion(X, sr)
             
-            # Logic to prevent 'Pleasant Surprise' / 'Disgust' bias on quiet/ambient audio
-            if rms < 0.02:
+            # Logic to prevent bias on ambient noise
+            if rms < 0.01: # Ultra quiet
                 if vis_emo and vis_conf > 0.1:
-                    final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio is background noise)"
+                    final_emo, final_conf, note = vis_emo, vis_conf, "Based on face (audio is silent)"
                 else:
-                    final_emo, final_conf, note = "neutral", 0.9, "Ambient noise detected"
+                    final_emo, final_conf, note = "neutral", 0.9, "Silent environment detected"
             else:
-                # Weighted Fusion / Priority
+                # Balanced Fusion
                 if vis_emo and vis_emo != 'N/A':
-                    is_trap = (audio_emo in ["disgust", "ps", "Pleasant Surprise"])
-                    if is_trap:
-                        if vis_emo != "neutral" and vis_conf > 0.2:
-                            final_emo, final_conf, note = vis_emo, vis_conf, f"Visual {vis_emo} overrides audio trap {audio_emo}"
-                        elif vis_emo == "neutral":
-                            final_emo, final_conf, note = "neutral", 0.85, "Visual neutral favored over audio bias"
-                        else:
-                            final_emo, final_conf, note = "neutral", 0.6, "Inconclusive (Audio Trap / No Face)"
-                    elif vis_conf > au_conf + 0.2:
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Based on higher visual confidence"
+                    # If audio says disgust but face is happy/surprise, trust face.
+                    # Otherwise, allow the model to speak!
+                    if audio_emo in ["disgust", "ps"] and vis_emo == "neutral":
+                        # If face is neutral, we still slightly prefer neutral over 'trap' audio
+                        final_emo, final_conf, note = "neutral", 0.7, "Weighted towards visual neutrality"
+                    elif vis_conf > au_conf + 0.3:
+                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual cues are stronger"
                     else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Based on audio evidence"
+                        final_emo, final_conf, note = audio_emo, au_conf, "Audio analysis prioritized"
                 else:
-                    if audio_emo == "disgust" and au_conf > 0.95:
-                        final_emo, final_conf, note = "neutral", 0.5, "Suspected bias (Audio-only Disgust ignored)"
-                    else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
+                    # Audio-only
+                    final_emo, final_conf, note = audio_emo, au_conf, "Audio-only analysis"
+
+            # Use features for hint instead of raw signal (more unique)
+            from audio_features_numpy import extract_features_combined
+            feats = extract_features_combined(X, sr)
+            feat_hint = ", ".join([f"{v:.1f}" for v in feats[12:17]]) # Show some MFCCs
 
             # Prepare all emotions for breakdown
             emotions_order = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
