@@ -67,12 +67,28 @@ def prediction_page(): return render_template('prediction.html', title="Predict"
 
 @app.route('/analyze')
 def analyze():
+    preds = []
     try:
-        with app.app_context(): db.create_all()
-        preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(50).all()
-    except:
-        preds = []
+        preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(100).all()
+        print(f"[INFO] Analysis history loaded: {len(preds)} rows.")
+    except Exception as e:
+        print(f"[ERROR] History query failed: {e}")
+        try:
+            with app.app_context(): db.create_all()
+            preds = []
+        except: pass
     return render_template('history.html', predictions=preds, title="History")
+
+@app.route('/clear_history', methods=['POST'])
+def clear_history():
+    try:
+        num_deleted = PredictionResult.query.delete()
+        db.session.commit()
+        print(f"[INFO] Cleared {num_deleted} records from history.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[ERROR] Clear history failed: {e}")
+    return redirect('/analyze')
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -93,11 +109,6 @@ def predict():
     tmp_path = None
 
     try:
-        # DB ensure
-        try:
-            with app.app_context(): db.create_all()
-        except: pass
-
         # Load model lazily
         try: warmup()
         except: pass
@@ -111,7 +122,7 @@ def predict():
 
         audio_path = tmp_path
         
-        # Process sequential for Vercel stability
+        # Process sequential for stability
         if is_video_file(file.filename):
             try:
                 vis_emo, vis_conf, vis_stats = analyze_video_faces(tmp_path)
@@ -167,7 +178,9 @@ def predict():
         # Prepare breakdown
         p_list = list(probs)
         for i, emo_id in enumerate(EMOTIONS_ORDER):
-            p = float(p_list[i]) if i < len(p_list) else (1.0 if vis_emo == emo_id else 0.0)
+            p = float(p_list[i]) if i < len(p_list) else (0.0)
+            if vis_emo == emo_id: p = max(p, 0.5) # Heuristic for visual presence
+            
             all_emotions_data.append({
                 'id': emo_id, 
                 'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
@@ -187,13 +200,18 @@ def predict():
             )
             db.session.add(res)
             db.session.commit()
-        except: pass
+            print(f"[INFO] Saved prediction {res.id} for {file.filename}")
+        except Exception as dbe:
+            print(f"[ERROR] DB Save Error: {dbe}")
+            db.session.rollback()
 
     except Exception as e:
         note = f"Critical Failure: {str(e)}"
     finally:
-        if tmp_path and os.path.exists(tmp_path): os.unlink(tmp_path)
-        if 'audio_path' in locals() and audio_path != tmp_path and os.path.exists(audio_path):
+        if tmp_path and os.path.exists(tmp_path): 
+            try: os.unlink(tmp_path)
+            except: pass
+        if 'audio_path' in locals() and audio_path != tmp_path and audio_path and os.path.exists(audio_path):
             try: os.unlink(audio_path)
             except: pass
 
@@ -207,4 +225,6 @@ def predict():
         return f"Template Error: {str(e)}", 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=50005)
+    with app.app_context():
+        db.create_all()
+    app.run(host='0.0.0.0', debug=True, port=10000)
