@@ -28,7 +28,7 @@ def extract_audio_from_video(video_path):
 
         command = [
             ffmpeg_exe, '-y', '-i', video_path,
-            '-ss', '00:00:00', '-t', '5',
+            '-t', '20',
             '-vn', '-acodec', 'pcm_s16le',
             '-ar', '22050', '-ac', '1',
             temp_audio_path
