@@ -15,6 +15,8 @@ from audio_features_numpy import extract_features_combined
 
 # Standard Emotion Set
 EMOTIONS_ORDER = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'ps', 'sad']
+PLEASANT_SURPRISE = 'Pleasant Surprise'
+
 EMOJI_MAP = {
     'angry': '😠',
     'disgust': '🤢',
@@ -22,13 +24,13 @@ EMOJI_MAP = {
     'happy': '😊',
     'neutral': '😐',
     'ps': '🤩',
-    'Pleasant Surprise': '🤩',
+    PLEASANT_SURPRISE: '🤩',
     'surprise': '😲',
     'sad': '😢'
 }
 LABEL_MAP = {
-    'ps': 'Pleasant Surprise',
-    'Pleasant Surprise': 'Pleasant Surprise',
+    'ps': PLEASANT_SURPRISE,
+    PLEASANT_SURPRISE: PLEASANT_SURPRISE,
     'surprise': 'Surprise'
 }
 
@@ -76,7 +78,8 @@ def analyze():
         try:
             with app.app_context(): db.create_all()
             preds = []
-        except: pass
+        except Exception: 
+            pass
     return render_template('history.html', predictions=preds, title="History")
 
 @app.route('/clear_history', methods=['POST'])
@@ -90,6 +93,45 @@ def clear_history():
         print(f"[ERROR] Clear history failed: {e}")
     return redirect('/analyze')
 
+def _extract_audio_data(audio_path, sr):
+    """Helper to extract raw audio using FFmpeg."""
+    try:
+        try:
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            ffmpeg_exe = "ffmpeg"
+
+        cmd = [
+            ffmpeg_exe, '-y', '-i', audio_path,
+            '-t', '15',
+            '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
+        ]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        out, _ = process.communicate()
+        if out:
+            return np.frombuffer(out, dtype=np.float32)
+    except Exception as e:
+        print(f"[ERROR] Audio extraction failed: {e}")
+    return np.array([])
+
+def _fuse_emotions(audio_emo, au_conf, vis_emo, vis_conf, rms):
+    """Business logic for fusing audio and visual emotion results."""
+    if rms < 0.002:
+        if vis_emo != 'N/A' and vis_conf > 0.05:
+            return vis_emo, vis_conf, "Visual only (Silent audio)"
+        return "neutral", 0.9, "Silence detected"
+    
+    # Priority for high-arousal negative emotions in audio
+    if audio_emo in ['disgust', 'sad', 'fear', 'angry']:
+        return audio_emo, au_conf, f"Priority Audio {audio_emo}"
+    
+    if vis_emo != 'N/A' and vis_conf > 0.05:
+        if vis_conf > au_conf + 0.1:
+            return vis_emo, vis_conf, "Visual evidence dominant"
+        return audio_emo, au_conf, "Segmented audio prioritization"
+    
+    return audio_emo, au_conf, "Deep Segmented AI Analysis"
+
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'audio_file' not in request.files: return jsonify({'error': 'No file'}), 400
@@ -98,22 +140,16 @@ def predict():
 
     # Safe defaults
     final_emo, final_conf, note = "neutral", 0.0, "Analysis Complete"
-    audio_emo, vis_emo = "Unknown", "N/A"
-    all_emotions_data = []
-    audio_segments = []
-    vis_stats = {}
+    audio_emo, vis_emo, vis_stats = "Unknown", "N/A", {}
+    audio_segments, all_emotions_data = [], []
     probs = [0.0] * len(EMOTIONS_ORDER)
-    X = np.array([])
     sr = 22050
-    raw_hint = "N/A"
     tmp_path = None
 
     try:
-        # Load model lazily
         try: warmup()
-        except: pass
+        except Exception: pass
 
-        # Save to /tmp
         temp_dir = "/tmp" if os.environ.get('VERCEL') else None
         ext = os.path.splitext(file.filename)[1]
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir=temp_dir) as tmp:
@@ -121,8 +157,6 @@ def predict():
             tmp_path = tmp.name
 
         audio_path = tmp_path
-        
-        # Process sequential for stability
         if is_video_file(file.filename):
             try:
                 vis_emo, vis_conf, vis_stats = analyze_video_faces(tmp_path)
@@ -130,81 +164,32 @@ def predict():
             except Exception as e:
                 print(f"[WARN] Video failed: {e}")
         
-        # Audio extraction
-        try:
-            try:
-                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-            except:
-                ffmpeg_exe = "ffmpeg"
-
-            cmd = [
-                ffmpeg_exe, '-y', '-i', audio_path,
-                '-t', '15',
-                '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
-            ]
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-            out, _ = process.communicate()
-            if out:
-                X = np.frombuffer(out, dtype=np.float32)
-            
-            if len(X) >= 500:
-                rms = np.sqrt(np.mean(X**2))
-                res_audio = predict_audio_emotion(X, sr)
-                if len(res_audio) == 4:
-                    audio_emo, au_conf, probs, audio_segments = res_audio
-                else:
-                    audio_emo, au_conf, probs = res_audio[:3]
-                    audio_segments = []
-
-                if rms < 0.002:
-                    if vis_emo != 'N/A' and vis_conf > 0.05:
-                        final_emo, final_conf, note = vis_emo, vis_conf, "Visual only (Silent audio)"
-                    else:
-                        final_emo, final_conf, note = "neutral", 0.9, "Silence detected"
-                else:
-                    # Logic: Trust Audio for "Hard" emotions (Disgust/Sad/Fear) unless video is extremely confident
-                    # Video "Happy" is often a false positive (grimace)
-                    if audio_emo in ['disgust', 'sad', 'fear', 'angry']:
-                        final_emo, final_conf, note = audio_emo, au_conf, f"Priority Audio {audio_emo}"
-                    elif vis_emo != 'N/A' and vis_conf > 0.05:
-                        if vis_conf > au_conf + 0.1:
-                            final_emo, final_conf, note = vis_emo, vis_conf, "Visual evidence dominant"
-                        else:
-                            final_emo, final_conf, note = audio_emo, au_conf, "Segmented audio prioritization"
-                    else:
-                        final_emo, final_conf, note = audio_emo, au_conf, "Deep Segmented AI Analysis"
-            else:
-                final_emo, final_conf, note = (vis_emo if vis_emo != 'N/A' else "neutral"), vis_conf, "Short/Silent clip"
-
-        except Exception as e:
-            note = f"Audio engine error: {str(e)}"
+        X = _extract_audio_data(audio_path, sr)
+        if len(X) >= 500:
+            rms = np.sqrt(np.mean(X**2))
+            res_audio = predict_audio_emotion(X, sr)
+            audio_emo, au_conf, probs = res_audio[0], res_audio[1], res_audio[2]
+            audio_segments = res_audio[3] if len(res_audio) == 4 else []
+            final_emo, final_conf, note = _fuse_emotions(audio_emo, au_conf, vis_emo, vis_conf if 'vis_conf' in locals() else 0, rms)
+        else:
+            final_emo, final_conf, note = (vis_emo if vis_emo != 'N/A' else "neutral"), (vis_conf if 'vis_conf' in locals() else 0), "Short/Silent clip"
 
         # Prepare breakdown
-        p_list = list(probs)
         for i, emo_id in enumerate(EMOTIONS_ORDER):
-            p = float(p_list[i]) if i < len(p_list) else (0.0)
-            if vis_emo == emo_id: p = max(p, 0.5) # Heuristic for visual presence
-            
+            p = float(probs[i]) if i < len(probs) else 0.0
+            if vis_emo == emo_id: p = max(p, 0.5)
             all_emotions_data.append({
-                'id': emo_id, 
-                'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
-                'emoji': EMOJI_MAP.get(emo_id, '❓'), 
-                'prob': round(p * 100, 1)
+                'id': emo_id, 'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
+                'emoji': EMOJI_MAP.get(emo_id, '❓'), 'prob': round(p * 100, 1)
             })
         all_emotions_data.sort(key=lambda x: x['prob'], reverse=True)
 
-        # Store in DB
+        # DB Store
         try:
-            res = PredictionResult(
-                filename=secure_filename(file.filename), 
-                audio_emotion=str(audio_emo), 
-                visual_emotion=str(vis_emo), 
-                final_emotion=str(final_emo), 
-                confidence=float(final_conf)
-            )
+            res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=str(audio_emo), 
+                                   visual_emotion=str(vis_emo), final_emotion=str(final_emo), confidence=float(final_conf))
             db.session.add(res)
             db.session.commit()
-            print(f"[INFO] Saved prediction {res.id} for {file.filename}")
         except Exception as dbe:
             print(f"[ERROR] DB Save Error: {dbe}")
             db.session.rollback()
@@ -212,19 +197,16 @@ def predict():
     except Exception as e:
         note = f"Critical Failure: {str(e)}"
     finally:
-        if tmp_path and os.path.exists(tmp_path): 
-            try: os.unlink(tmp_path)
-            except: pass
-        if 'audio_path' in locals() and audio_path != tmp_path and audio_path and os.path.exists(audio_path):
-            try: os.unlink(audio_path)
-            except: pass
+        for p in [tmp_path, (audio_path if 'audio_path' in locals() and audio_path != tmp_path else None)]:
+            if p and os.path.exists(p):
+                try: os.unlink(p)
+                except Exception: pass
 
-    # Last resort rendering safety
     try:
         return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
                              visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
                              all_emotions=all_emotions_data, vis_stats=vis_stats,
-                             feat_hint=raw_hint, audio_segments=audio_segments)
+                             feat_hint="N/A", audio_segments=audio_segments)
     except Exception as e:
         return f"Template Error: {str(e)}", 500
 
