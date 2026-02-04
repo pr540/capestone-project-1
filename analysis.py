@@ -156,12 +156,13 @@ def predict_audio_emotion(audio_data, sr):
         chunk_results = []
         for chunk in segments:
             features = extract_audio_features(chunk, sr)
-            if hasattr(m, 'classes_'): 
-                p = m.predict_proba(features)[0]
-                label = str(m.predict(features)[0])
+            p = m.predict_proba(features)[0]
+            # Handle both sklearn (array) and NumpyMLP (string) predictions
+            raw_pred = m.predict(features)
+            if hasattr(raw_pred, '__getitem__') and not isinstance(raw_pred, str):
+                label = str(raw_pred[0])
             else:
-                p = m.predict_proba(features)[0]
-                label = str(m.predict(features))
+                label = str(raw_pred)
             
             # Feature Correction: Disgust/Sad often confused for Happy by the model
             # Happy = High Energy + High ZCR (Laughter). Disgust/Sad = Low ZCR.

@@ -86,9 +86,10 @@ def extract_features_combined(y, sr):
     if len(y) < 2048:
         y = np.pad(y, (0, 2048 - len(y)))
     
-    # Normalize signal to standard float range [-1, 1]
-    if np.max(np.abs(y)) > 1e-8:
-        y = y / np.max(np.abs(y))
+    # Feature Scaling: Global normalization disabled. 
+    # Sadness is low-energy by nature; forced normalization makes it look like Fear.
+    # if np.max(np.abs(y)) > 1e-8:
+    #     y = y / np.max(np.abs(y))
     
     # STFT and Mel
     s = stft(y)
