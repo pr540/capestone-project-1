@@ -181,27 +181,21 @@ def predict_audio_emotion(audio_data, sr):
                              label = 'disgust'
                              p = np.zeros_like(p)
                              p[1] = 0.9
-                except: pass
+                except Exception: 
+                    pass
                 
             chunk_results.append((label, p))
             
-        # Decision: Pick the most "expressive" chunk (not neutral if others exist)
-        # But prevent 'happy' from dominating if other negative emotions exist
+        # Decision: Use the Most Confident Expressive Chunk
+        # Standard approach: Pick the segment the AI is most certain about
         non_neutral = [r for r in chunk_results if r[0] != 'neutral']
         
-        # Check if we have conflicting strong emotions
-        negatives = [r for r in non_neutral if r[0] in ['disgust', 'sad', 'fear', 'angry']]
-        if negatives:
-             # If we have valid negative segments, prefer them over happy
-             final_r = max(negatives, key=lambda x: np.max(x[1]))
-             return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
-        
-        # Default fallback
         if non_neutral:
+            # Pick the one with highest confidence
             final_r = max(non_neutral, key=lambda x: np.max(x[1]))
             return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
         else:
-            # All neutral or only one segment
+            # Fallback to first chunk (likely neutral)
             return chunk_results[0][0], float(np.max(chunk_results[0][1])), chunk_results[0][1], chunk_results
 
     except Exception as e:

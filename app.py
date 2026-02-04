@@ -9,8 +9,6 @@ from database import db, PredictionResult
 from utils import allowed_file, is_video_file, extract_audio_from_video
 from analysis import analyze_video_faces, predict_audio_emotion, warmup
 from concurrent.futures import ThreadPoolExecutor
-import time
-import traceback
 from audio_features_numpy import extract_features_combined
 
 # Standard Emotion Set
@@ -59,26 +57,28 @@ def favicon():
                                'logo1.png', mimetype='image/png')
 
 @app.route('/')
-def home(): return render_template('index.html', title="Home")
+def home(): 
+    return render_template('index.html', title="Home")
 
 @app.route('/about')
-def about(): return render_template('about.html', title="About")
+def about(): 
+    return render_template('about.html', title="About")
 
 @app.route('/prediction_page')
-def prediction_page(): return render_template('prediction.html', title="Predict")
+def prediction_page(): 
+    return render_template('prediction.html', title="Predict")
 
 @app.route('/analyze')
 def analyze():
     preds = []
     try:
         preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(100).all()
-        print(f"[INFO] Analysis history loaded: {len(preds)} rows.")
     except Exception as e:
         print(f"[ERROR] History query failed: {e}")
         try:
-            with app.app_context(): db.create_all()
-            preds = []
-        except Exception: 
+            with app.app_context():
+                db.create_all()
+        except Exception:
             pass
     return render_template('history.html', predictions=preds, title="History")
 
@@ -87,14 +87,14 @@ def clear_history():
     try:
         num_deleted = PredictionResult.query.delete()
         db.session.commit()
-        print(f"[INFO] Cleared {num_deleted} records from history.")
+        print(f"[INFO] Cleared {num_deleted} records.")
     except Exception as e:
         db.session.rollback()
         print(f"[ERROR] Clear history failed: {e}")
     return redirect('/analyze')
 
-def _extract_audio_data(audio_path, sr):
-    """Helper to extract raw audio using FFmpeg."""
+def _call_ffmpeg(audio_path, sr):
+    """Helper for FFmpeg process management."""
     try:
         try:
             ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -108,107 +108,123 @@ def _extract_audio_data(audio_path, sr):
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         out, _ = process.communicate()
-        if out:
-            return np.frombuffer(out, dtype=np.float32)
-    except Exception as e:
-        print(f"[ERROR] Audio extraction failed: {e}")
-    return np.array([])
+        return out
+    except Exception:
+        return None
 
-def _fuse_emotions(audio_emo, au_conf, vis_emo, vis_conf, rms):
-    """Business logic for fusing audio and visual emotion results."""
+def _get_audio_results(audio_path, sr):
+    """Extract and predict from audio path."""
+    out = _call_ffmpeg(audio_path, sr)
+    if not out:
+        return "neutral", 0.0, [0.0]*len(EMOTIONS_ORDER), []
+    
+    X = np.frombuffer(out, dtype=np.float32)
+    if len(X) < 500:
+        return "neutral", 0.1, [0.0]*len(EMOTIONS_ORDER), []
+    
+    rms = np.sqrt(np.mean(X**2))
+    res_audio = predict_audio_emotion(X, sr)
+    # Ensure 4-tuple return
+    if len(res_audio) < 4:
+        return res_audio[0], res_audio[1], res_audio[2], []
+    return res_audio + (rms,)
+
+def _final_logic(audio_data, vis_data):
+    """Business fusion logic for final decision."""
+    a_emo, a_conf, _, _, rms = audio_data
+    v_emo, v_conf, _ = vis_data
+
     if rms < 0.002:
-        if vis_emo != 'N/A' and vis_conf > 0.05:
-            return vis_emo, vis_conf, "Visual only (Silent audio)"
+        if v_emo != 'N/A' and v_conf > 0.05:
+            return v_emo, v_conf, "Visual only (Silent audio)"
         return "neutral", 0.9, "Silence detected"
     
-    # Priority for high-arousal negative emotions in audio
-    if audio_emo in ['disgust', 'sad', 'fear', 'angry']:
-        return audio_emo, au_conf, f"Priority Audio {audio_emo}"
+    if a_emo in ['disgust', 'sad', 'fear', 'angry']:
+        return a_emo, a_conf, f"Priority Audio {a_emo}"
     
-    if vis_emo != 'N/A' and vis_conf > 0.05:
-        if vis_conf > au_conf + 0.1:
-            return vis_emo, vis_conf, "Visual evidence dominant"
-        return audio_emo, au_conf, "Segmented audio prioritization"
+    if v_emo != 'N/A' and v_conf > 0.05:
+        if v_conf > a_conf + 0.1:
+            return v_emo, v_conf, "Visual evidence dominant"
     
-    return audio_emo, au_conf, "Deep Segmented AI Analysis"
+    return a_emo, a_conf, "Deep Segmented AI Analysis"
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'audio_file' not in request.files: return jsonify({'error': 'No file'}), 400
+    if 'audio_file' not in request.files: 
+        return jsonify({'error': 'No file'}), 400
     file = request.files['audio_file']
-    if not file or not allowed_file(file.filename): return jsonify({'error': 'Invalid file'}), 400
+    if not file or not allowed_file(file.filename): 
+        return jsonify({'error': 'Invalid file'}), 400
 
-    # Safe defaults
-    final_emo, final_conf, note = "neutral", 0.0, "Analysis Complete"
-    audio_emo, vis_emo, vis_stats = "Unknown", "N/A", {}
-    audio_segments, all_emotions_data = [], []
-    probs = [0.0] * len(EMOTIONS_ORDER)
-    sr = 22050
-    tmp_path = None
+    # Defaults
+    res_vars = {
+        'f_emo': 'neutral', 'f_conf': 0.0, 'note': 'Analysis Complete',
+        'a_emo': 'Unknown', 'v_emo': 'N/A', 'v_stats': {},
+        'a_segs': [], 'a_data': [], 'probs': [0.0]*len(EMOTIONS_ORDER),
+        'tmp': None
+    }
 
     try:
         try: warmup()
         except Exception: pass
 
-        temp_dir = "/tmp" if os.environ.get('VERCEL') else None
+        t_dir = "/tmp" if os.environ.get('VERCEL') else None
         ext = os.path.splitext(file.filename)[1]
-        with tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir=temp_dir) as tmp:
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False, dir=t_dir) as tmp:
             file.save(tmp.name)
-            tmp_path = tmp.name
+            res_vars['tmp'] = tmp.name
 
-        audio_path = tmp_path
+        a_path = res_vars['tmp']
+        v_conf = 0.0
         if is_video_file(file.filename):
             try:
-                vis_emo, vis_conf, vis_stats = analyze_video_faces(tmp_path)
-                audio_path = extract_audio_from_video(tmp_path)
-            except Exception as e:
-                print(f"[WARN] Video failed: {e}")
+                res_vars['v_emo'], v_conf, res_vars['v_stats'] = analyze_video_faces(res_vars['tmp'])
+                a_path = extract_audio_from_video(res_vars['tmp'])
+            except Exception: pass
         
-        X = _extract_audio_data(audio_path, sr)
-        if len(X) >= 500:
-            rms = np.sqrt(np.mean(X**2))
-            res_audio = predict_audio_emotion(X, sr)
-            audio_emo, au_conf, probs = res_audio[0], res_audio[1], res_audio[2]
-            audio_segments = res_audio[3] if len(res_audio) == 4 else []
-            final_emo, final_conf, note = _fuse_emotions(audio_emo, au_conf, vis_emo, vis_conf if 'vis_conf' in locals() else 0, rms)
-        else:
-            final_emo, final_conf, note = (vis_emo if vis_emo != 'N/A' else "neutral"), (vis_conf if 'vis_conf' in locals() else 0), "Short/Silent clip"
+        # Audio Analysis
+        a_res = _get_audio_results(a_path, 22050)
+        res_vars['a_emo'], a_conf, res_vars['probs'] = a_res[0], a_res[1], a_res[2]
+        res_vars['a_segs'] = a_res[3]
+        
+        # Fusion
+        res_vars['f_emo'], res_vars['f_conf'], res_vars['note'] = _final_logic(a_res, (res_vars['v_emo'], v_conf, res_vars['v_stats']))
 
-        # Prepare breakdown
-        for i, emo_id in enumerate(EMOTIONS_ORDER):
-            p = float(probs[i]) if i < len(probs) else 0.0
-            if vis_emo == emo_id: p = max(p, 0.5)
-            all_emotions_data.append({
-                'id': emo_id, 'name': LABEL_MAP.get(emo_id, emo_id).capitalize(),
-                'emoji': EMOJI_MAP.get(emo_id, '❓'), 'prob': round(p * 100, 1)
+        # Prepare Data
+        for i, eid in enumerate(EMOTIONS_ORDER):
+            p = float(res_vars['probs'][i]) if i < len(res_vars['probs']) else 0.0
+            if res_vars['v_emo'] == eid: p = max(p, 0.5)
+            res_vars['a_data'].append({
+                'id': eid, 'name': LABEL_MAP.get(eid, eid).capitalize(),
+                'emoji': EMOJI_MAP.get(eid, '❓'), 'prob': round(p * 100, 1)
             })
-        all_emotions_data.sort(key=lambda x: x['prob'], reverse=True)
+        res_vars['a_data'].sort(key=lambda x: x['prob'], reverse=True)
 
-        # DB Store
+        # DB
         try:
-            res = PredictionResult(filename=secure_filename(file.filename), audio_emotion=str(audio_emo), 
-                                   visual_emotion=str(vis_emo), final_emotion=str(final_emo), confidence=float(final_conf))
-            db.session.add(res)
+            db_res = PredictionResult(
+                filename=secure_filename(file.filename), audio_emotion=str(res_vars['a_emo']),
+                visual_emotion=str(res_vars['v_emo']), final_emotion=str(res_vars['f_emo']),
+                confidence=float(res_vars['f_conf'])
+            )
+            db.session.add(db_res)
             db.session.commit()
-        except Exception as dbe:
-            print(f"[ERROR] DB Save Error: {dbe}")
+        except Exception:
             db.session.rollback()
 
     except Exception as e:
-        note = f"Critical Failure: {str(e)}"
+        res_vars['note'] = f"Error: {e}"
     finally:
-        for p in [tmp_path, (audio_path if 'audio_path' in locals() and audio_path != tmp_path else None)]:
+        for p in [res_vars['tmp'], (a_path if 'a_path' in locals() and a_path != res_vars['tmp'] else None)]:
             if p and os.path.exists(p):
                 try: os.unlink(p)
                 except Exception: pass
 
-    try:
-        return render_template('result.html', predicted_emotion=final_emo, confidence=round(final_conf*100,1),
-                             visual_emotion=vis_emo, audio_emotion=audio_emo, note=note,
-                             all_emotions=all_emotions_data, vis_stats=vis_stats,
-                             feat_hint="N/A", audio_segments=audio_segments)
-    except Exception as e:
-        return f"Template Error: {str(e)}", 500
+    return render_template('result.html', predicted_emotion=res_vars['f_emo'], 
+                          confidence=round(res_vars['f_conf']*100,1),
+                          visual_emotion=res_vars['v_emo'], audio_emotion=res_vars['a_emo'], 
+                          note=res_vars['note'], all_emotions=res_vars['a_data'], 
+                          vis_stats=res_vars['v_stats'], audio_segments=res_vars['a_segs'])
 
 if __name__ == '__main__':
     with app.app_context():

@@ -99,7 +99,7 @@ def extract_features_combined(y, sr):
     log_m = 10.0 * np.log10(np.maximum(m, 1e-10))
     mfcc_feat = np.mean(mfcc_from_db(log_m), axis=0)
     
-    # Mel features (original training script uses linear power mean)
+    # Mel features (Linear Power Mean)
     mel_feat = np.mean(m, axis=0)
     
     # Chroma features (from linear magnitude STFT)
