@@ -2016,3 +2016,51 @@ a.move-top {
 	border-color: rgba(255, 255, 255, 0.1) !important;
 	vertical-align: middle !important;
 }
+/* Emotion Badges */
+.emotion-badge {
+	padding: 4px 12px;
+	border-radius: 20px;
+	font-weight: 600;
+	display: inline-block;
+	text-transform: uppercase;
+	font-size: 0.8rem;
+	color: white;
+	/* Default */
+}
+
+.badge-happy {
+	background-color: #2ecc71 !important;
+	color: white !important;
+}
+
+.badge-sad {
+	background-color: #3498db !important;
+	color: white !important;
+}
+
+.badge-angry {
+	background-color: #ff4d4d !important;
+	color: white !important;
+}
+
+.badge-fear {
+	background-color: #34495e !important;
+	color: white !important;
+}
+
+.badge-disgust {
+	background-color: #8e44ad !important;
+	color: white !important;
+}
+
+.badge-surprise,
+.badge-ps,
+.badge-pleasant_surprise {
+	background-color: #f1c40f !important;
+	color: #333 !important;
+}
+
+.badge-neutral {
+	background-color: #95a5a6 !important;
+	color: white !important;
+}

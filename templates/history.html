@@ -1,5 +1,4 @@
 {% extends 'layout.html' %}
-<!-- Force Reload -->
 
 {% block body %}
 <section class="history-section">
@@ -7,89 +6,98 @@
         <div class="container">
             <h2 class="text-center mb-5 text-white" style="font-weight: bold;">📊 Analyzed Prediction History</h2>
 
-        <div class="card history-card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover table-glass">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Timestamp</th>
-                                <th>Filename</th>
-                                <th>Audio Emotion</th>
-                                <th>Visual Emotion</th>
-                                <th>Final Result</th>
-                                <th>Accuracy/Conf</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for prediction in predictions %}
-                            <tr>
-                                <td>{{ prediction.id }}</td>
-                                <td>{{ prediction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                                <td><small>{{ prediction.filename }}</small></td>
-                                <td>
-                                    <span
-                                        class="emotion-badge badge-{{ prediction.audio_emotion.lower() if prediction.audio_emotion else 'neutral' }}">
-                                        {{ prediction.audio_emotion }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span
-                                        class="emotion-badge badge-{{ prediction.visual_emotion.lower() if prediction.visual_emotion else 'neutral' }}">
-                                        {{ prediction.visual_emotion }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {% set color = '#95a5a6' %}
-                                    {% if prediction.final_emotion.lower() == 'happy' %}{% set color = '#2ecc71' %}
-                                    {% elif prediction.final_emotion.lower() == 'sad' %}{% set color = '#3498db' %}
-                                    {% elif prediction.final_emotion.lower() == 'angry' %}{% set color = '#ff4d4d' %}
-                                    {% elif prediction.final_emotion.lower() == 'fear' %}{% set color = '#34495e' %}
-                                    {% elif prediction.final_emotion.lower() == 'disgust' %}{% set color = '#8e44ad' %}
-                                    {% elif prediction.final_emotion.lower() in ['ps', 'surprise', 'pleasant surprise'] %}{% set color = '#f1c40f' %}
-                                    {% endif %}
-                                    <strong>
-                                        <span class="emotion-badge"
-                                            style="background: {{ color }}; color: {{ '#333' if color == '#f1c40f' else 'white' }}; padding: 4px 12px; border-radius: 20px;">
+            <div class="card history-card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-glass">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Filename</th>
+                                    <th>Audio Emotion</th>
+                                    <th>Visual Emotion</th>
+                                    <th>Final Result</th>
+                                    <th>Accuracy/Conf</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prediction in predictions %}
+                                <tr>
+                                    <td>{{ prediction.id }}</td>
+                                    <td>{{ prediction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td><small>{{ prediction.filename }}</small></td>
+                                    <td>
+                                        <span class="emotion-badge badge-{{ (prediction.audio_emotion|default('neutral')).lower().replace(' ', '_') }}">
+                                            {{ prediction.audio_emotion }}
+                                        </span>
+                                        </td>
+                                        <td>
+                                        <span class="emotion-badge badge-{{ (prediction.visual_emotion|default('neutral')).lower().replace(' ', '_') }}">
+                                            {{ prediction.visual_emotion }}
+                                        </span>
+                                        </td>
+                                        <td>
+                                        <span class="emotion-badge badge-{{ (prediction.final_emotion|default('neutral')).lower().replace(' ', '_') }}">
                                             {{ prediction.final_emotion|upper }}
                                         </span>
-                                    </strong>
-                                </td>
-                                <td>
-                                    {% set percent = (prediction.confidence|default(0)|float * 100)|round(1) %}
-                                    {% set bar_style = 'style="width: ' ~ percent ~ '%;"' %}
-                                    <div class="progress" style="height: 10px; margin-top: 5px;">
-                                        <div class="progress-bar bg-success" role="progressbar" {{ bar_style|safe }}>
+                                    </td>
+                                    <td>
+                                        {% set percent = (prediction.confidence|default(0)|float * 100)|round(1) %}
+                                        <div class="d-flex align-items-center" style="min-width: 120px;">
+                                            <div class="progress flex-grow-1 mr-2" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                                                <div class="progress-bar bg-success history-progress-bar" role="progressbar" data-percent="{{ percent }}">
+                                                </div>
+                                            </div>
+                                            <small class="text-white">{{ percent }}%</small>
+                                            </div>
+                                            </td>
+                                            </tr>
+                                            {% else %}
+                                            <tr>
+                                    <td colspan="7" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="fas fa-history fa-x3 mb-3"></i>
+                                            <p>No analysis history found yet.</p>
+                                            <a href="/prediction_page" class="btn btn-warning mt-3">Start First Analysis</a>
                                         </div>
-                                    </div>
-                                    <small>{{ percent }}%</small>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center py-4">No analysis history found in database.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    </td>
+                                    </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                    </table>
+                    </div>
                 </div>
+{% if predictions %}
+<div class="card-footer bg-transparent border-0 text-center pb-4">
+    <form action="/clear_history" method="POST"
+        onsubmit="return confirm('Are you sure you want to clear all history?');">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+            <i class="fas fa-trash-alt mr-2"></i> Clear Analysis History
+        </button>
+    </form>
+</div>
+{% endif %}
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{{ url_for('prediction_page') }}" class="btn btn-primary px-5 py-2"
+                    style="border-radius: 50px; background: #e8cd30; color: #111; border: none; font-weight: bold;">
+                    <i class="fa fa-plus"></i> New Analysis
+                </a>
             </div>
         </div>
-
-        <div class="text-center mt-4">
-            <a href="{{ url_for('prediction_page') }}" class="btn btn-primary px-5 py-2"
-                style="border-radius: 50px; background: #e8cd30; color: #111; border: none; font-weight: bold;">
-                <i class="fa fa-plus"></i> New Analysis
-            </a>
-            <form action="/clear_history" method="POST" class="d-inline ml-2"
-                onsubmit="return confirm('Are you sure you want to clear all history?');">
-                <button type="submit" class="btn btn-danger px-4 py-2" style="border-radius: 50px;">
-                    <i class="fa fa-trash"></i> Clear History
-                </button>
-            </form>
-        </div>
-        </div>
-        </div>
+    </div>
 </section>
+<script>
+    // Set progress bar widths dynamically to avoid IDE CSS linting issues
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.history-progress-bar').forEach(function (bar) {
+            const percent = bar.getAttribute('data-percent');
+            if (percent) {
+                bar.style.width = percent + '%';
+            }
+        });
+    });
+</script>
 {% endblock %}
