@@ -3,232 +3,266 @@
 {% block body %}
 <style>
   .result-container {
-    max-width: 900px;
+    max-width: 950px;
     margin: 50px auto;
     padding: 40px;
     background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-    border-radius: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border-radius: 40px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
     text-align: center;
     color: white;
+    font-family: 'Inter', sans-serif;
   }
 
   .emotion-display {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 40px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    border-radius: 30px;
+    padding: 50px 30px;
     margin: 30px 0;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.15);
     color: #333;
+    position: relative;
+    overflow: hidden;
   }
 
   .emotion-emoji {
-    font-size: 110px;
+    font-size: 130px;
     margin: 10px 0;
-    filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
-    animation: floating 3s ease-in-out infinite;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+    animation: floating 3.5s ease-in-out infinite;
   }
 
   @keyframes floating {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-15px); }
+    0%, 100% { transform: translateY(0) rotate(0); }
+    50% { transform: translateY(-20px) rotate(2deg); }
   }
 
   .emotion-name {
-    font-size: 3rem;
+    font-size: 3.5rem;
     font-weight: 900;
     background: linear-gradient(120deg, #1e3c72, #2a5298);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     text-transform: uppercase;
-    letter-spacing: 3px;
-    margin-top: -10px;
+    letter-spacing: 4px;
+    margin-top: -15px;
   }
 
+  /* Decision Matrix Grid */
   .decision-matrix {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-    gap: 10px;
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 15px;
+    margin-top: 25px;
   }
 
   .matrix-item {
-    background: white;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(0,0,0,0.05);
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    background: #f8f9fa;
+    padding: 20px 15px;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
   }
 
   .matrix-item:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+    transform: translateY(-10px) scale(1.05);
+    background: white;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1);
     border-color: #1e3c72;
     z-index: 10;
   }
 
+  .matrix-item.active {
+    background: #eef2f7;
+    border-color: #1e3c72;
+    box-shadow: 0 8px 15px rgba(30, 60, 114, 0.1);
+  }
+
+  /* Timeline Enhancements */
+  .timeline-container {
+    background: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    border: 1px solid #eee;
+    margin: 25px 0;
+  }
+
   .timeline-bar {
-    height: 55px;
-    border-radius: 12px;
+    height: 70px;
+    border-radius: 15px;
     overflow: hidden;
-    border: 2px solid rgba(0,0,0,0.1);
-    margin-top: 10px;
-    background: #f0f0f0;
+    border: 1px solid rgba(0,0,0,0.05);
+    background: #f1f3f5;
+    display: flex;
   }
 
   .seg-chunk {
     flex: 1;
-    position: relative;
-    border-right: 1px solid rgba(255,255,255,0.2);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    border-right: 1px solid rgba(255,255,255,0.25);
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .seg-chunk:hover {
+    filter: brightness(1.1);
+    flex: 1.2;
   }
 
   .seg-emoji {
-    font-size: 16px;
-    line-height: 1;
+    font-size: 24px;
+    margin-bottom: 2px;
   }
 
   .seg-score {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 800;
     color: white;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-    margin-top: 2px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
   }
 
-  /* Segment Timeline Colors */
-  .seg-happy { background: linear-gradient(to bottom, #2ecc71, #27ae60) !important; }
-  .seg-sad { background: linear-gradient(to bottom, #3498db, #2980b9) !important; }
-  .seg-angry { background: linear-gradient(to bottom, #ff4d4d, #c0392b) !important; }
-  .seg-fear { background: linear-gradient(to bottom, #34495e, #2c3e50) !important; }
-  .seg-ps, .seg-surprise { background: linear-gradient(to bottom, #f1c40f, #f39c12) !important; }
-  .seg-disgust { background: linear-gradient(to bottom, #8e44ad, #7d3c98) !important; }
-  .seg-neutral { background: linear-gradient(to bottom, #95a5a6, #7f8c8d) !important; }
+  /* Segment Gradients */
+  .seg-happy { background: linear-gradient(145deg, #2ecc71, #27ae60) !important; }
+  .seg-sad { background: linear-gradient(145deg, #3498db, #2980b9) !important; }
+  .seg-angry { background: linear-gradient(145deg, #e74c3c, #c0392b) !important; }
+  .seg-fear { background: linear-gradient(145deg, #9b59b6, #8e44ad) !important; }
+  .seg-ps, .seg-surprise { background: linear-gradient(145deg, #f1c40f, #f39c12) !important; }
+  .seg-disgust { background: linear-gradient(145deg, #27ae60, #16a085) !important; }
+  .seg-neutral { background: linear-gradient(145deg, #95a5a6, #7f8c8d) !important; }
+
+  /* Decision Logic Banner */
+  .logic-banner {
+    background: #eef2f7;
+    border-radius: 20px;
+    padding: 20px;
+    border-left: 8px solid #1e3c72;
+    text-align: left;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+  }
+
+  .logic-icon {
+    font-size: 40px;
+    color: #1e3c72;
+    margin-right: 20px;
+    opacity: 0.8;
+  }
 
   .btn-premium {
     background: white;
     color: #1e3c72;
-    padding: 15px 35px;
+    padding: 18px 45px;
     border-radius: 50px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
+    letter-spacing: 1.5px;
+    transition: all 0.4s ease;
     border: 2px solid white;
     text-decoration: none;
     display: inline-block;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
   }
 
   .btn-premium:hover {
     background: transparent;
     color: white;
-    transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.35);
   }
 
   .btn-outline-premium {
     background: transparent;
     color: white;
-    padding: 15px 35px;
+    padding: 18px 45px;
     border-radius: 50px;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    transition: all 0.3s ease;
-    border: 2px solid rgba(255,255,255,0.7);
+    letter-spacing: 1.5px;
+    transition: all 0.4s ease;
+    border: 2px solid rgba(255,255,255,0.8);
     text-decoration: none;
     display: inline-block;
   }
 
   .btn-outline-premium:hover {
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.2);
     border-color: white;
-    transform: scale(1.05);
+    transform: translateY(-5px);
   }
 </style>
 
 <div class="result-container">
-  <h1 class="mb-4" style="font-weight: 800; letter-spacing: 2px;">⚡ INTELLIGENT EMOTION ANALYSIS</h1>
+  <h1 class="mb-5" style="font-weight: 900; letter-spacing: 3px; text-shadow: 0 5px 15px rgba(0,0,0,0.2);">🧠 MULTI-MODAL
+    EMOTION ENGINE</h1>
 
-  <div class="emotion-display">
-    <div class="small text-muted mb-2 text-uppercase font-weight-bold" style="letter-spacing: 2px;">Composite Result
-      Detection</div>
+  <div class="emotion-display shadow-lg">
+    <div class="small text-muted mb-3 text-uppercase font-weight-bold" style="letter-spacing: 3px; opacity: 0.7;">
+      Consolidated Perception</div>
     
     {% set emo_clean = predicted_emotion|lower|trim %}
-    {% if emo_clean == 'happy' %}{% set emoji = '😊' %}{% set desc = 'The system detected authentic happiness and positive
-    energy' %}
-    {% elif emo_clean == 'angry' %}{% set emoji = '😠' %}{% set desc = 'Patterns of frustration or intense irritation
+    {% if emo_clean == 'happy' %}{% set emoji = '😊' %}{% set desc = 'Positive valence detected with high acoustic/visual
+    alignment' %}
+    {% elif emo_clean == 'angry' %}{% set emoji = '😠' %}{% set desc = 'Acoustic aggression filters identified intense
+    frustration' %}
+    {% elif emo_clean == 'disgust' %}{% set emoji = '🤢' %}{% set desc = 'Subtle patterns of distaste or social discomfort
     detected' %}
-    {% elif emo_clean == 'disgust' %}{% set emoji = '🤢' %}{% set desc = 'Expression of strong discomfort or distaste
-    observed' %}
-    {% elif emo_clean == 'fear' %}{% set emoji = '😨' %}{% set desc = 'High-probability patterns of anxiety or fear
-    detected' %}
-    {% elif emo_clean == 'neutral' %}{% set emoji = '😐' %}{% set desc = 'The signal indicates a calm, neutral emotional
-    state' %}
-    {% elif emo_clean in ['ps', 'pleasant surprise', 'surprise'] %}{% set emoji = '🤩' %}{% set desc = 'Vocal/Visual
-    patterns of joyful surprise detected' %}
-    {% elif emo_clean == 'sad' %}{% set emoji = '😢' %}{% set desc = 'Analysis indicates an expression of grief or sadness'
+    {% elif emo_clean == 'fear' %}{% set emoji = '😨' %}{% set desc = 'Signal patterns indicate high-alert/distress state'
     %}
-    {% else %}{% set emoji = '🤔' %}{% set desc = 'Result of combined factor analysis' %}{% endif %}
+    {% elif emo_clean == 'neutral' %}{% set emoji = '😐' %}{% set desc = 'System steady-state: No dominant emotional peaks'
+    %}
+    {% elif emo_clean in ['ps', 'pleasant surprise', 'surprise'] %}{% set emoji = '🤩' %}{% set desc = 'Positive-arousal
+    detected with surprise features' %}
+    {% elif emo_clean == 'sad' %}{% set emoji = '😢' %}{% set desc = 'Low-energy signal consistent with grief/sadness' %}
+    {% else %}{% set emoji = '🤖' %}{% set desc = 'Automated Signal Breakdown' %}{% endif %}
 
     <div class="emotion-emoji">{{ emoji }}</div>
     <div class="emotion-name">{{ predicted_emotion.replace('ps', 'Pleasant Surprise').title() }}</div>
-    <div class="emotion-description text-muted font-italic mb-4">"{{ desc }}"</div>
+    <div class="emotion-description text-muted font-italic mb-5" style="font-size: 1.1rem; line-height: 1.6;">"{{ desc }}"
+    </div>
 
-    <div class="mt-4 p-4 text-left" style="background: #fdfdfd; border-radius: 20px; border: 1px solid #eee;">
-      <h5 class="text-primary mb-4 d-flex align-items-center">
-        <i class="fas fa-brain mr-2"></i> Analysis Decision Engine
+    <div class="p-4 text-left" style="background: #fafafa; border-radius: 25px; border: 1px solid #eee;">
+      <h5 class="text-primary mb-4 d-flex align-items-center font-weight-bold">
+        <i class="fas fa-microchip mr-2"></i> NEURAL DECISION ARCHITECTURE
       </h5>
       
-      <div class="mb-4 p-3 rounded" style="background: #f0f4f8; border-left: 5px solid #1e3c72;">
-        <div class="d-flex justify-content-between align-items-center">
-          <strong class="text-dark">Decision Logic:</strong>
-          {% set parts = note.split(': ') %}
-          <span class="badge badge-primary">{{ parts[0] if parts|length > 1 else 'System Result' }}</span>
+      <div class="logic-banner shadow-sm">
+        <div class="logic-icon"><i class="fas fa-brain"></i></div>
+        <div>
+          <strong class="text-dark d-block">Fusion Logic Analysis:</strong>
+          <span class="text-muted small" style="font-weight: 600;">{{ note }}</span>
         </div>
-        <p class="mb-0 small text-muted mt-2">{{ parts[1] if parts|length > 1 else note }}</p>
       </div>
 
-      <!-- Analysis Steps -->
-      <div class="analysis-step mb-3 p-3 rounded transition-hover"
-        style="background: white; border: 1px solid #eee; border-left: 4px solid #007bff;">
-        <div class="d-flex align-items-center">
-          <div class="bg-primary text-white rounded-circle mr-3 d-flex align-items-center justify-content-center"
-            style="width:30px; height:30px; font-weight: bold;">1</div>
-          <div class="flex-grow-1">
-            <div class="small text-muted text-uppercase mb-1" style="font-size: 0.6rem;">Acoustic Audio Scan</div>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <div class="p-3 rounded border-left"
+            style="background: white; border-left: 5px solid #1e3c72; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+            <div class="small text-muted text-uppercase font-weight-bold mb-2">Audio Spectral Scan</div>
             <div class="d-flex justify-content-between align-items-center">
-              <strong>Audio Engine: <span class="text-primary">{{ audio_emotion|upper }}</span></strong>
-              <span style="font-size: 1.5rem;">
+              <strong style="font-size: 1.2rem;">{{ audio_emotion|upper }}</strong>
+              <span style="font-size: 1.8rem;">
                 {% set a_e = audio_emotion|lower|trim %}
-                {% if a_e == 'happy' %}😊{% elif a_e == 'sad' %}😢{% elif a_e in ['ps', 'surprise'] %}🤩{% elif a_e == 'disgust'
-                %}🤢{% elif a_e == 'fear' %}😨{% elif a_e == 'angry' %}😠{% else %}😐{% endif %}
+                {% if a_e == 'happy' %}😊{% elif a_e == 'sad' %}😢{% elif a_e in ['ps', 'surprise'] %}🤩{% elif a_e == 'disgust' %}🤢{%
+                elif a_e == 'fear' %}😨{% elif a_e == 'angry' %}😠{% else %}😐{% endif %}
               </span>
             </div>
           </div>
         </div>
-      </div>
-
-      {% if visual_emotion and visual_emotion != 'N/A' %}
-      <div class="analysis-step mb-3 p-3 rounded transition-hover"
-        style="background: white; border: 1px solid #eee; border-left: 4px solid #17a2b8;">
-        <div class="d-flex align-items-center">
-          <div class="bg-info text-white rounded-circle mr-3 d-flex align-items-center justify-content-center"
-            style="width:30px; height:30px; font-weight: bold;">2</div>
-          <div class="flex-grow-1">
-            <div class="small text-muted text-uppercase mb-1" style="font-size: 0.6rem;">Facial Heuristic Data</div>
+        <div class="col-md-6 mb-3">
+          <div class="p-3 rounded border-left"
+            style="background: white; border-left: 5px solid #17a2b8; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
+            <div class="small text-muted text-uppercase font-weight-bold mb-2">Visual Feature Vector</div>
             <div class="d-flex justify-content-between align-items-center">
-              <strong>Visual Engine: <span class="text-info">{{ visual_emotion|upper }}</span></strong>
-              <span style="font-size: 1.5rem;">
-                {% set v_e = visual_emotion|lower|trim %}
+              <strong style="font-size: 1.2rem;">{{ (visual_emotion if visual_emotion else 'N/A')|upper }}</strong>
+              <span style="font-size: 1.8rem;">
+                {% set v_e = (visual_emotion|lower if visual_emotion else 'n/a')|trim %}
                 {% if v_e == 'happy' %}😊{% elif v_e == 'sad' %}😢{% elif v_e in ['ps', 'surprise'] %}🤩{% elif v_e == 'disgust'
                 %}🤢{% elif v_e == 'fear' %}😨{% elif v_e == 'angry' %}😠{% else %}😐{% endif %}
               </span>
@@ -236,78 +270,87 @@
           </div>
         </div>
       </div>
-      {% endif %}
 
-      <!-- Timeline with Emojis & Scores -->
+      <!-- Enhanced Detailed Timeline -->
       {% if audio_segments and audio_segments|length > 0 %}
-      <div class="mt-4 mb-4">
-        <div class="small text-muted mb-2 font-weight-bold text-uppercase" style="letter-spacing: 1px;">
-          <i class="fas fa-clock mr-1"></i> Segmented Analysis Breakdown (3s periods)
+      <div class="timeline-container shadow-sm mt-4">
+        <div class="small text-muted mb-3 font-weight-bold text-uppercase d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-wave-square mr-2"></i> Temporal Analysis (All 7 Emotions Intensity)</span>
+          <span class="badge badge-primary">3s Chunks</span>
         </div>
-        <div class="d-flex timeline-bar">
+        <div class="timeline-bar">
           {% for seg_label, seg_probs in audio_segments %}
           {% set s_lab = seg_label|lower|trim %}
           {% set s_p = (seg_probs|max * 100)|round(0)|int %}
-          <div class="seg-chunk seg-{{ s_lab }}" title="{{ s_lab|upper }}: {{ s_p }}% Confidence">
+          <div class="seg-chunk seg-{{ s_lab }}" title="{{ s_lab|upper }}: {{ s_p }}% Precision Match">
             <div class="seg-emoji">
-              {% if s_lab == 'happy' %}😊{% elif s_lab == 'sad' %}😢{% elif s_lab in ['ps', 'surprise'] %}🤩{% elif s_lab ==
-              'disgust' %}🤢{% elif s_lab == 'fear' %}😨{% elif s_lab == 'angry' %}😠{% else %}😐{% endif %}
+              {% if s_lab == 'happy' %}😊{% elif s_lab == 'sad' %}😢{% elif s_lab in ['ps', 'surprise'] %}🤩{% elif s_lab == 'disgust'
+              %}🤢{% elif s_lab == 'fear' %}😨{% elif s_lab == 'angry' %}😠{% else %}😐{% endif %}
             </div>
             <div class="seg-score">{{ s_p }}%</div>
           </div>
           {% endfor %}
         </div>
+        <div class="mt-2 text-center small text-muted font-italic">Each block represents a 3-second temporal slice of the input
+          signal.</div>
       </div>
       {% endif %}
 
-      <!-- Seven Emotions Pulse -->
+      <!-- Global Decision Matrix -->
       <div class="mt-5 pt-4 border-top">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="text-dark font-weight-bold m-0"><i class="fas fa-th-large mr-2"></i> Comprehensive Decision Matrix</h6>
-          <span class="small text-muted">Acoustic Consistency Map</span>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h6 class="text-dark font-weight-bold m-0"><i class="fas fa-project-diagram mr-2"></i> CROSS-EMOTION CONSISTENCY</h6>
+          <span class="badge badge-light px-3 py-2" style="font-size: 0.8rem;">Acoustic Distribution</span>
         </div>
         
         <div class="decision-matrix">
           {% for emo in all_emotions %}
-          <div class="matrix-item text-center">
-            <div style="font-size: 2rem; margin-bottom: 5px;">{{ emo.emoji }}</div>
-            <div class="small font-weight-bold text-dark" style="line-height: 1.1; margin-bottom: 5px;">{{ emo.name }}</div>
-            <div class="progress" style="height: 6px; background: #eee; border-radius: 10px;">
-              <div class="progress-bar {% if loop.index == 1 %}bg-success{% else %}bg-secondary{% endif %}"
-                data-width="{{ emo.prob }}"></div>
+          <div class="matrix-item text-center shadow-sm {% if loop.index == 1 %}active{% endif %}">
+            <div style="font-size: 2.2rem; margin-bottom: 8px;">{{ emo.emoji }}</div>
+            <div class="small font-weight-bold text-dark text-uppercase mb-2" style="letter-spacing: 1px;">{{ emo.name }}</div>
+            <div class="progress" style="height: 8px; background: #dfe4e9; border-radius: 20px; overflow: hidden;">
+              <div class="progress-bar {% if loop.index == 1 %}bg-primary{% else %}bg-secondary{% endif %} progress-bar-striped"
+                data-width="{{ emo.prob }}" style="box-shadow: 0 0 10px rgba(0,0,0,0.1);"></div>
             </div>
-            <div class="mt-1" style="font-size: 0.75rem; color: #666; font-weight: 700;">{{ emo.prob }}% Match</div>
+            <div class="mt-2" style="font-size: 0.85rem; color: #1e3c72; font-weight: 800;">{{ emo.prob }}% MATCH</div>
           </div>
           {% endfor %}
         </div>
       </div>
     </div>
 
-    <!-- Confidence Indicator -->
-    <div class="mt-4 p-4" style="background: #1e3c72; border-radius: 20px; color: white;">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="text-uppercase font-weight-bold" style="letter-spacing: 1px; font-size: 0.8rem;">System Reliability
-          Score</span>
-        <span class="badge badge-light px-3 py-1" style="font-weight: 900;">{{ confidence }}%</span>
+    <!-- Final Confidence Metric -->
+    <div class="mt-4 p-5"
+      style="background: linear-gradient(135deg, #1e3c72, #2a5298); border-radius: 30px; color: white; box-shadow: 0 10px 30px rgba(30, 60, 114, 0.3);">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="text-uppercase font-weight-bold" style="letter-spacing: 2px; font-size: 0.9rem;">Systemic Reliability
+          Index</span>
+        <span class="badge badge-light px-4 py-2"
+          style="font-weight: 900; font-size: 1.1rem; border-radius: 15px; color: #1e3c72;">{{ confidence }}%</span>
       </div>
-      <div class="progress" style="height: 12px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+      <div class="progress shadow-lg"
+        style="height: 15px; background: rgba(255,255,255,0.1); border-radius: 30px; border: 1px solid rgba(255,255,255,0.1);">
         <div class="progress-bar bg-white progress-bar-striped progress-bar-animated" role="progressbar"
-          data-width="{{ confidence }}"></div>
+             data-width="{{ confidence }}" style="box-shadow: 0 0 20px rgba(255,255,255,0.4);"></div>
       </div>
+      <div class="mt-3 small opacity-75">Confidence derived from signal consistency and cross-modal agreement levels.</div>
     </div>
   </div>
 
-  <div class="button-group mt-5">
-    <a href="{{ url_for('prediction_page') }}" class="btn-premium">🔄 NEW ANALYSIS</a>
-    <a href="/" class="btn-outline-premium">🏠 LOGOUT / HOME</a>
+  <div class="button-group mt-5 d-flex justify-content-center gap-4 align-items-center flex-wrap">
+    <a href="{{ url_for('prediction_page') }}" class="btn-premium mb-3">🔄 START NEW ANALYSIS</a>
+    <a href="/" class="btn-outline-premium mb-3">🏠 RETURN TO DASHBOARD</a>
   </div>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-      document.querySelectorAll('[data-width]').forEach(function (el) {
-      el.style.width = el.getAttribute('data-width') + '%';
-    });
+      // Dynamic progress bars
+      setTimeout(() => {
+        document.querySelectorAll('[data-width]').forEach(function (el) {
+          el.style.width = el.getAttribute('data-width') + '%';
+        });
+    }, 300);
   });
 </script>
 {% endblock %}

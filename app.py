@@ -130,43 +130,37 @@ def _get_audio_results(audio_path, sr):
     return res_audio + (rms,)
 
 def _fuse_emotions(audio_data, vis_data):
-    """Business fusion logic for final decision with Mixture detection."""
+    """Balanced fusion logic for final decision."""
     a_emo, a_conf, a_probs, _, rms = audio_data
     v_emo, v_conf, v_stats = vis_data
 
     # 1. Handle Silence
     if rms < 0.002:
         if v_emo != 'N/A' and v_conf > 0.05:
-            return v_emo, v_conf, "Visual representation (Silent audio)"
-        return "neutral", 0.9, "Neutral/Silent background"
+            return v_emo, v_conf, "Visual Scan Dominant (Silent Audio)"
+        return "neutral", 0.9, "Neutral/Silent Background"
     
-    # 2. Mixture Detection: Check for strong secondary emotion
-    # If top 2 are close, it's a Mixture
+    # 2. Mixture Detection
     sorted_idx = np.argsort(a_probs)[::-1]
-    top1_idx, top2_idx = sorted_idx[0], sorted_idx[1]
-    top1_val, top2_val = a_probs[top1_idx], a_probs[top2_idx]
+    top1_val, top2_val = a_probs[sorted_idx[0]], a_probs[sorted_idx[1]]
     
-    final_emo, final_conf = a_emo, a_conf
-    note = "Single dominant emotion detected"
+    note = "Balanced Signal Analysis"
+    if top2_val > (top1_val * 0.7) and top2_val > 0.15:
+        note = f"Complex Signal: {a_emo.upper()} + {EMOTIONS_ORDER[sorted_idx[1]].upper()}"
 
-    # If the second emotion is > 60% of the first, it's a mix
-    if top2_val > (top1_val * 0.6) and top2_val > 0.15:
-        mixed_emo = EMOTIONS_ORDER[top2_idx]
-        note = f"Mixture Detected: {a_emo.upper()} + {mixed_emo.upper()}"
-        # If one is positive and one is negative, note the complexity
-        if a_emo in ['happy', 'ps'] and mixed_emo in ['sad', 'disgust', 'fear', 'angry']:
-             note += " (Mixed Valence)"
+    # 3. Dynamic Priority Logic
+    # If vision is MUCH stronger than audio, trust vision (fixes "Fear" bias)
+    if v_emo != 'N/A' and v_conf > a_conf + 0.15:
+        return v_emo, v_conf, f"Visual Override: Strong {v_emo.upper()} detected"
 
-    # 3. Audio Priority Override (Negative emotions are critical)
-    if a_emo in ['disgust', 'sad', 'fear', 'angry']:
+    # 4. Critical Emotion Sensitivity (Prioritize high-confidence negatives)
+    if a_emo in ['disgust', 'sad', 'fear', 'angry'] and a_conf > 0.35:
+        # Check if vision strongly contradicts with Happy
+        if v_emo == 'happy' and v_conf > 0.1:
+             return 'happy', v_conf, "Visual Happiness over Acoustic Tension"
         return a_emo, a_conf, f"High-Alert: {note}"
     
-    # 4. Visual Override
-    if v_emo != 'N/A' and v_conf > 0.05:
-        if v_conf > a_conf + 0.1:
-            return v_emo, v_conf, "Visual evidence dominant"
-    
-    return final_emo, final_conf, note
+    return a_emo, a_conf, note
 
 @app.route('/predict', methods=['POST'])
 def predict():
