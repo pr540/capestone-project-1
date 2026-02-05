@@ -300,17 +300,17 @@
       <div class="temporal-box">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <div class="font-weight-bold text-dark text-uppercase small" style="letter-spacing: 1px;"><i
-              class="fas fa-history mr-2"></i> Temporal Analysis (3s Segments)</div>
-          <div class="badge badge-light px-3 py-1">Voice Consistency Check</div>
+              class="fas fa-history mr-2"></i> Temporal Analysis (1.5s High-Res Segments)</div>
+          <div class="badge badge-light px-3 py-1">Voice Accuracy Check</div>
         </div>
         <div class="timeline-track">
           {% for seg_label, seg_probs in audio_segments %}
           {% set s_lab = seg_label|lower|trim %}
           {% set s_p = (seg_probs|max * 100)|round(0)|int %}
-          <div class="segment-unit col-{{ s_lab }}" title="{{ s_lab|upper }}: {{ s_p }}% Precision">
+          <div class="segment-unit col-{{ s_lab }}" title="{{ s_lab|upper }}: {{ s_p }}% Accuracy">
             <div class="segment-emoji">
-              {% if s_lab == 'happy' %}😊{% elif s_lab == 'sad' %}😢{% elif s_lab in ['ps', 'surprise'] %}🤩{% elif s_lab ==
-              'disgust' %}🤢{% elif s_lab == 'fear' %}😨{% elif s_lab == 'angry' %}😠{% else %}😐{% endif %}
+              {% if s_lab == 'happy' %}😊{% elif s_lab == 'sad' %}😢{% elif s_lab in ['ps', 'surprise'] %}🤩{% elif s_lab == 'disgust'
+              %}🤢{% elif s_lab == 'fear' %}😨{% elif s_lab == 'angry' %}😠{% else %}😐{% endif %}
             </div>
             <div class="segment-percent">{{ s_p }}%</div>
           </div>

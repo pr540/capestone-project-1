@@ -144,11 +144,11 @@ def predict_audio_emotion(audio_data, sr):
 
     try:
         # Segmented Analysis: Split into 3s chunks to catch peak emotions/laughter
-        chunk_size = sr * 3
+        chunk_size = int(sr * 1.5) # 1.5s segments for double detail
         segments = []
         for i in range(0, len(audio_data), chunk_size):
             chunk = audio_data[i:i+chunk_size]
-            if len(chunk) < sr: continue # Too short
+            if len(chunk) < int(sr * 0.5): continue # Keep segments > 0.5s
             segments.append(chunk)
         
         if not segments: segments = [audio_data]
