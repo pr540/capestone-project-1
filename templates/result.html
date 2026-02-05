@@ -3,76 +3,77 @@
 {% block body %}
 <style>
   .result-container {
-    max-width: 800px;
+    max-width: 900px;
     margin: 50px auto;
     padding: 40px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 20px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    border-radius: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     text-align: center;
-  }
-
-  .result-title {
-    font-weight: bold;
-    color: #ffffff;
-    font-size: 2.5rem;
-    margin-bottom: 30px;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    color: white;
   }
 
   .emotion-display {
-    background: white;
-    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
     padding: 40px;
     margin: 30px 0;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    color: #333;
   }
 
   .emotion-emoji {
-    font-size: 120px;
-    margin: 20px 0;
-    animation: bounce 1s ease-in-out;
+    font-size: 100px;
+    margin: 10px 0;
+    filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1));
+    animation: floating 3s ease-in-out infinite;
   }
 
-  @keyframes bounce {
+  @keyframes floating {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-20px); }
+    50% { transform: translateY(-15px); }
   }
 
   .emotion-name {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #4B0082;
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(120deg, #1e3c72, #2a5298);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
     text-transform: uppercase;
-    margin: 20px 0;
     letter-spacing: 2px;
   }
 
-  .emotion-description {
-    font-size: 1.2rem;
-    color: #666;
-    margin: 15px 0;
-    font-style: italic;
+  .decision-matrix {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
   }
 
-  .btn-custom {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    color: white;
-    padding: 15px 40px;
-    font-size: 1.2rem;
-    border-radius: 50px;
-    margin: 20px 10px;
+  .matrix-item {
+    background: white;
+    padding: 15px;
+    border-radius: 15px;
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+  }
+
+  .matrix-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    border-color: #1e3c72;
+  }
+
+  .transition-hover {
     transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-block;
   }
-
-  .btn-custom:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-    color: white;
-    text-decoration: none;
+  .transition-hover:hover {
+    background: rgba(255,255,255,0.85) !important;
+    transform: translateX(5px);
   }
 
   /* Segment Timeline Colors */
@@ -81,197 +82,158 @@
   .seg-angry { background-color: #ff4d4d !important; }
   .seg-fear { background-color: #34495e !important; }
   .seg-ps, .seg-surprise { background-color: #f1c40f !important; }
-  .seg-disgust { background-color: #8e44ad !important; } /* Purple for Disgust */
+  .seg-disgust { background-color: #8e44ad !important; }
   .seg-neutral { background-color: #95a5a6 !important; }
 </style>
 
-{% if confidence is defined %}
-<style>
-  :root {
-    --confidence-width: {{ confidence }}%;
-  }
-  .dynamic-progress-bar {
-    width: var(--confidence-width);
-  }
-</style>
-{% endif %}
-
 <div class="result-container">
-  <h1 class="result-title">🎭 Emotion Detection Result</h1>
+  <h1 class="mb-4" style="font-weight: 800; letter-spacing: 2px;">⚡ INTELLIGENT EMOTION ANALYSIS</h1>
 
   <div class="emotion-display">
-    <div class="small text-muted mb-2 text-uppercase font-weight-bold" style="letter-spacing: 1px;">Combined Final Decision
+    <div class="small text-muted mb-2 text-uppercase font-weight-bold" style="letter-spacing: 2px;">Composite Result
+      Detection</div>
+    
+    {% if predicted_emotion == 'angry' %}{% set emoji = '😠' %}{% set desc = 'The system detected patterns of frustration or
+    anger in the signal' %}
+    {% elif predicted_emotion == 'disgust' %}{% set emoji = '🤢' %}{% set desc = 'The analysis suggests an expression of
+    discomfort or distaste' %}
+    {% elif predicted_emotion == 'fear' %}{% set emoji = '😨' %}{% set desc = 'The system detected patterns of anxiety or
+    fear' %}
+    {% elif predicted_emotion == 'happy' %}{% set emoji = '😊' %}{% set desc = 'The subject appears to be expressing
+    happiness or joy' %}
+    {% elif predicted_emotion == 'neutral' %}{% set emoji = '😐' %}{% set desc = 'The signal indicates a calm, neutral
+    emotional state' %}
+    {% elif predicted_emotion in ['ps', 'Pleasant Surprise'] %}{% set emoji = '🤩' %}{% set desc = 'The subject appears to
+    be expressing joyful surprise' %}
+    {% elif predicted_emotion == 'sad' %}{% set emoji = '😢' %}{% set desc = 'The analysis indicates an expression of
+    sadness' %}
+    {% else %}{% set emoji = '🤔' %}{% set desc = 'Result of composite emotion analysis' %}{% endif %}
+    
+    <div class="emotion-emoji">{{ emoji }}</div>
+    <div class="emotion-name">{{ predicted_emotion.capitalize() if predicted_emotion != 'ps' else 'Pleasant Surprise' }}
     </div>
-    {% if predicted_emotion == 'angry' %}
-    <div class="emotion-emoji">😠</div>
-    <div class="emotion-name">Angry</div>
-    <div class="emotion-description">The system detected patterns of frustration or anger in the signal</div>
-    {% elif predicted_emotion == 'disgust' %}
-    <div class="emotion-emoji">🤢</div>
-    <div class="emotion-name">Disgust</div>
-    <div class="emotion-description">The analysis suggests an expression of discomfort or distaste</div>
-    {% elif predicted_emotion == 'fear' %}
-    <div class="emotion-emoji">😨</div>
-    <div class="emotion-name">Fear</div>
-    <div class="emotion-description">The system detected patterns of anxiety or fear</div>
-    {% elif predicted_emotion == 'happy' %}
-    <div class="emotion-emoji">😊</div>
-    <div class="emotion-name">Happy</div>
-    <div class="emotion-description">The subject appears to be expressing happiness or joy</div>
-    {% elif predicted_emotion == 'neutral' %}
-    <div class="emotion-emoji">😐</div>
-    <div class="emotion-name">Neutral</div>
-    <div class="emotion-description">The signal indicates a calm, neutral emotional state</div>
-    {% elif predicted_emotion in ['ps', 'Pleasant Surprise'] %}
-    <div class="emotion-emoji">🤩</div>
-    <div class="emotion-name">Pleasant Surprise</div>
-    <div class="emotion-description">The subject appears to be expressing joyful surprise</div>
-    {% elif predicted_emotion in ['surprise', '😲'] %}
-    <div class="emotion-emoji">😲</div>
-    <div class="emotion-name">Surprise</div>
-    <div class="emotion-description">The subject appears to be expressing surprise</div>
-    {% elif predicted_emotion == 'sad' %}
-    <div class="emotion-emoji">😢</div>
-    <div class="emotion-name">Sad</div>
-    <div class="emotion-description">The analysis indicates an expression of sadness</div>
-    {% elif predicted_emotion == 'disgust' %}
-    <div class="emotion-emoji">🤢</div>
-    <div class="emotion-name">Disgust</div>
-    <div class="emotion-description">The analysis suggests aversion or distaste</div>
-    {% else %}
-    <div class="emotion-emoji">🤔</div>
-    <div class="emotion-name">{{ predicted_emotion.capitalize() if predicted_emotion else 'Unknown' }}</div>
-    <div class="emotion-description">Result of composite emotion analysis</div>
-    {% endif %}
+    <div class="emotion-description text-muted font-italic mb-4">"{{ desc }}"</div>
 
-    <div class="mt-4 p-4 bg-light border rounded text-left" style="background: rgba(255,255,255,0.9) !important;">
-      <h5 class="text-primary mb-3"><i class="fas fa-microscope"></i> Analysis Decision Engine</h5>
+    <div class="mt-4 p-4 text-left" style="background: #fdfdfd; border-radius: 20px; border: 1px solid #eee;">
+      <h5 class="text-primary mb-4 d-flex align-items-center">
+        <i class="fas fa-brain mr-2"></i> Analysis Decision Engine
+      </h5>
       
-      <div class="decision-box mb-3 p-2 rounded" style="background: rgba(0, 123, 255, 0.05); border-left: 5px solid #007bff;">
-        <strong>Signal Source:</strong>
-        <span class="badge badge-info">{{ note.split('(')[0] if note else 'Default' }}</span>
-        {% if note %}
-        <p class="mb-0 small text-muted mt-1 italic"><i class="fas fa-info-circle"></i> {{ note }}</p>
-        {% endif %}
+      <div class="mb-4 p-3 rounded" style="background: #f0f4f8; border-left: 5px solid #1e3c72;">
+        <div class="d-flex justify-content-between align-items-center">
+          <strong class="text-dark">Decision Logic:</strong>
+          <span class="badge badge-primary">{{ note.split('(')[0] if note else 'Standard' }}</span>
+        </div>
+        <p class="mb-0 small text-muted mt-2">{{ note }}</p>
       </div>
 
-      <div class="analysis-step mb-2">
+      <!-- Analysis Steps -->
+      <div class="analysis-step mb-3 p-3 rounded transition-hover" style="background: white; border: 1px solid #eee;">
         <div class="d-flex align-items-center">
-          <div class="step-marker bg-success text-white rounded-circle mr-3"
-            style="width:20px; height:20px; line-height:20px; text-align:center; font-size:12px; flex-shrink:0;">1</div>
-          <div class="small"><strong>Audio Analysis:</strong> High-Precision Signal Engine predicted <b>{{ audio_emotion|upper
-              }}</b></div>
+          <div class="bg-primary text-white rounded-circle mr-3 d-flex align-items-center justify-content-center"
+            style="width:30px; height:30px; font-weight: bold;">1</div>
+          <div class="flex-grow-1">
+            <div class="small text-muted text-uppercase mb-1" style="font-size: 0.6rem;">Acoustic Audio Scan</div>
+            <div class="d-flex justify-content-between">
+              <strong>Audio Engine: <span class="text-primary">{{ audio_emotion|upper }}</span></strong>
+              <span style="font-size: 1.2rem;">
+                {% if audio_emotion == 'happy' %}😊{% elif audio_emotion == 'sad' %}😢{% elif audio_emotion in ['ps', 'surprise']
+                %}🤩{% elif audio_emotion == 'disgust' %}🤢{% elif audio_emotion == 'fear' %}😨{% elif audio_emotion == 'angry'
+                %}😠{% else %}😐{% endif %}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {% if visual_emotion and visual_emotion != 'N/A' %}
-      <div class="analysis-step mb-2">
+      <div class="analysis-step mb-3 p-3 rounded transition-hover" style="background: white; border: 1px solid #eee;">
         <div class="d-flex align-items-center">
-          <div class="step-marker bg-info text-white rounded-circle mr-3"
-            style="width:20px; height:20px; line-height:20px; text-align:center; font-size:12px; flex-shrink:0;">2</div>
-          <div class="small"><strong>Visual:</strong> Face heuristic detected <b>{{ visual_emotion }}</b></div>
+          <div class="bg-info text-white rounded-circle mr-3 d-flex align-items-center justify-content-center"
+            style="width:30px; height:30px; font-weight: bold;">2</div>
+          <div class="flex-grow-1">
+            <div class="small text-muted text-uppercase mb-1" style="font-size: 0.6rem;">Facial Heuristic Data</div>
+            <div class="d-flex justify-content-between">
+              <strong>Visual Engine: <span class="text-info">{{ visual_emotion|upper }}</span></strong>
+              <span style="font-size: 1.2rem;">
+                {% if visual_emotion == 'happy' %}😊{% elif visual_emotion == 'sad' %}😢{% elif visual_emotion in ['ps',
+                'surprise'] %}🤩{% elif visual_emotion == 'disgust' %}🤢{% elif visual_emotion == 'fear' %}😨{% elif
+                visual_emotion == 'angry' %}😠{% else %}😐{% endif %}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
       {% endif %}
 
-      {% if all_emotions %}
-      {% if vis_stats %}
-      <div class="analysis-step mb-2 p-2 rounded" style="background: rgba(255,255,255,0.4);">
-        <div class="small text-muted mb-1"><i class="fas fa-video"></i> Visual Frame Analysis Breakdown:</div>
-        <div class="d-flex flex-wrap gap-2 small">
-          {% for emo_key, count in vis_stats.items() %}
-          {% if count > 0 %}
-          <span class="mr-3">{{ emo_key|capitalize }}: <b>{{ count }}</b></span>
-          {% endif %}
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-      
-      {% if audio_segments and audio_segments|length > 1 %}
-      <div class="analysis-step mb-2 p-2 rounded" style="background: rgba(255,255,255,0.4);">
-        <div class="small text-muted mb-2"><i class="fas fa-chart-line"></i> AI Segment Timeline (3s chunks):</div>
-        <div class="d-flex" style="height: 30px; border-radius: 15px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
+      <!-- Timeline -->
+      {% if audio_segments and audio_segments|length > 0 %}
+      <div class="mt-4 mb-4">
+        <div class="small text-muted mb-2 font-weight-bold text-uppercase" style="letter-spacing: 1px;"><i
+            class="fas fa-chart-line mr-1"></i> AI Segment Timeline (3s chunks)</div>
+        <div class="d-flex" style="height: 35px; border-radius: 8px; overflow: hidden; border: 1px solid #ddd;">
           {% for seg_label, seg_probs in audio_segments %}
-          <div class="seg-{{ seg_label|lower }}" style="flex: 1; position: relative;" title="{{ seg_label|upper }}">
-            <div style="font-size: 8px; color: white; text-align: center; line-height: 30px; font-weight: bold;">
+          <div class="seg-{{ seg_label|lower }}"
+            style="flex: 1; position: relative; border-right: 1px solid rgba(255,255,255,0.2);" title="{{ seg_label|upper }}">
+            <div
+              style="font-size: 9px; color: white; text-align: center; line-height: 35px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
               {{ seg_label[:3]|upper }}
             </div>
           </div>
           {% endfor %}
         </div>
-        <div class="d-flex justify-content-between mt-1 px-1">
-          <small class="text-muted">Start</small>
-          <small class="text-muted">{{ (audio_segments|length * 3) }}s total</small>
-        </div>
       </div>
       {% endif %}
 
-      {% if feat_hint %}
-      <div class="analysis-step mb-3 p-2 rounded bg-dark text-light" style="opacity: 0.9;">
-        <div class="small text-warning mb-1"><i class="fas fa-microchip"></i> AI RAW FEATURE VECTOR (First 5 Dimensions):
+      <!-- Seven Emotions Pulse -->
+      <div class="mt-5 pt-4 border-top">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="text-dark font-weight-bold m-0"><i class="fas fa-th-large mr-2"></i> Decision Matrix (All Emotions)</h6>
+          <span class="small text-muted">Acoustic Consistency</span>
         </div>
-        <code class="text-warning" style="font-size: 0.75rem; letter-spacing: 1px;">{{ feat_hint }}...</code>
-      </div>
-      {% endif %}
-
-      <div class="mt-4 pt-3 border-top">
-        <h6 class="text-primary mb-3"><i class="fas fa-chart-line"></i> Full Probability Breakdown</h6>
-        <div class="row">
+        
+        <div class="decision-matrix">
           {% for emo in all_emotions %}
-          <div class="col-md-6 mb-2">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="small">{{ emo.emoji }} {{ emo.name }}</span>
-              <span class="small font-weight-bold">{{ emo.prob }}%</span>
+          <div class="matrix-item text-center shadow-sm">
+            <div style="font-size: 1.8rem; margin-bottom: 5px;">{{ emo.emoji }}</div>
+            <div class="small font-weight-bold text-dark">{{ emo.name }}</div>
+            <div class="progress mt-2" style="height: 4px; background: #eee;">
+              <div class="progress-bar {% if loop.index == 1 %}bg-success{% else %}bg-secondary{% endif %}"
+                data-width="{{ emo.prob }}"></div>
             </div>
-            <div class="progress" style="height: 6px; background: rgba(0,0,0,0.05);">
-              <div class="progress-bar {% if loop.index == 1 %}bg-success{% else %}bg-secondary{% endif %}" role="progressbar"
-                style="--emo-width: {{ emo.prob }}%; width: var(--emo-width);"></div>
-            </div>
+            <div class="mt-1" style="font-size: 0.65rem; color: #999;">{{ emo.prob }}% match</div>
           </div>
           {% endfor %}
         </div>
       </div>
-      {% endif %}
     </div>
 
-    {% if confidence is defined %}
-    <div class="mt-3 p-2 bg-white rounded shadow-sm border">
-      <div class="d-flex justify-content-between mb-1">
-        <span class="small font-weight-bold">System Confidence</span>
-        <span class="small">{{ confidence }}%</span>
+    <!-- Confidence Indicator -->
+    <div class="mt-4 p-4" style="background: #1e3c72; border-radius: 20px; color: white;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-uppercase font-weight-bold" style="letter-spacing: 1px; font-size: 0.8rem;">Reliability confidence
+          score</span>
+        <span class="badge badge-light px-3 py-1">{{ confidence }}%</span>
       </div>
-      <div class="progress" style="height: 6px;">
-        <div class="progress-bar bg-primary dynamic-progress-bar" role="progressbar"></div>
+      <div class="progress" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+        <div class="progress-bar bg-white progress-bar-striped progress-bar-animated" role="progressbar"
+          data-width="{{ confidence }}"></div>
       </div>
-    </div>
-    {% endif %}
+      </div>
+      </div>
 
-    {% if visual_emotion and visual_emotion != 'N/A' %}
-    <hr style="margin: 20px 0; border-top: 1px solid #eee;">
-    <div style="display: flex; justify-content: space-around; text-align: center;">
-      <div>
-        <div style="font-size: 1.5rem;">🎤</div>
-        <div style="font-weight: bold; color: #666;">Audio Emotion</div>
-        <div style="color: #4B0082;">{{ audio_emotion|upper }}</div>
-      </div>
-      <div>
-        <div style="font-size: 1.5rem;">📷</div>
-        <div style="font-weight: bold; color: #666;">Visual Emotion</div>
-        <div style="color: #4B0082;">
-          <b>{{ visual_emotion|upper }}</b>
-          {% if visual_emotion == 'happy' %}😊{% elif visual_emotion == 'sad' %}😢{% elif visual_emotion in ['ps', 'surprise',
-          'pleasant surprise']
-          %}🤩{% elif visual_emotion == 'disgust' %}🤢{% elif visual_emotion == 'fear' %}😨{% elif visual_emotion == 'neutral'
-          %}😐{% endif %}
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
+  <div class="button-group mt-5">
+    <a href="{{ url_for('prediction_page') }}" class="btn-premium">🔄 Analyze Another</a>
+    <a href="/" class="btn-outline-premium"
+      style="border: 2px solid rgba(255,255,255,0.5); padding: 15px 35px; border-radius: 50px; color: white; transition: all 0.3s ease;">🏠
+      Return Home</a>
   </div>
-
-  <a href="{{ url_for('prediction_page') }}" class="btn-custom">🔄 Try Another</a>
-  <a href="/" class="btn-custom">🏠 Go Home</a>
 </div>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-width]').forEach(function (el) {
+      el.style.width = el.getAttribute('data-width') + '%';
+    });
+  });
+</script>
 {% endblock %}

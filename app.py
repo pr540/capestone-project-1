@@ -78,8 +78,8 @@ def analyze():
         try:
             with app.app_context():
                 db.create_all()
-        except Exception:
-            pass
+        except Exception as e2:
+            print(f"[ERROR] Database creation failed: {e2}")
     return render_template('history.html', predictions=preds, title="History")
 
 @app.route('/clear_history', methods=['POST'])
@@ -186,7 +186,8 @@ def predict():
 
     try:
         try: warmup()
-        except Exception: pass
+        except Exception as e_warm: 
+            print(f"[DEBUG] Warmup skip/fail: {e_warm}")
 
         t_dir = "/tmp" if os.environ.get('VERCEL') else None
         ext = os.path.splitext(file.filename)[1]
