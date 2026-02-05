@@ -85,15 +85,14 @@ def mfcc_from_db(db_mel, n_mfcc=40):
     return db_mel @ dct_matrix.T
 
 def extract_features_combined(y, sr):
-    if len(y) < 2048:
-        y = np.pad(y, (0, 2048 - len(y)))
-    
-    # Pre-Emphasis: Boost high frequencies (Emotions like Happy/Angry)
+    # 1. Pre-Emphasis: Boost high frequencies (Emotions like Happy/Angry)
     y = np.append(y[0], y[1:] - 0.97 * y[:-1])
-    
-    # Fixed Normalization
-    max_y = np.max(np.abs(y))
-    if max_y > 1.0: y = y / max_y
+
+    # 2. Vocal Normalization: Target RMS of 0.02 to standardize intensity
+    # This helps equalize Child (loud/high-pitch) and Senior (soft/low-pitch) signals.
+    current_rms = np.sqrt(np.mean(y**2))
+    if current_rms > 1e-6:
+        y = y * (0.02 / current_rms)
     
     # STFT and Mel
     s = stft(y)
@@ -103,10 +102,9 @@ def extract_features_combined(y, sr):
     log_m = 10.0 * np.log10(np.maximum(m, 1e-10))
     mfcc_feat = np.mean(mfcc_from_db(log_m), axis=0)
     
-    # Calibration Offset: TESS dataset MFCC[0] is centered around -412.
-    # Our numpy implementation on standard signals hits approx -227.
-    # Subtracting 185.0 aligns the input energy with the model's expectations.
-    mfcc_feat[0] -= 185.0
+    # Dynamic Calibration: TESS dataset MFCC[0] is centered around -425 for RMS=0.02.
+    # This aligns the "Energy" feature across all age groups and recording levels.
+    mfcc_feat[0] -= 425.0
     
     # Mel features (linear power mean)
     mel_feat = np.mean(m, axis=0)

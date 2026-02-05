@@ -195,6 +195,13 @@ def predict_audio_emotion(audio_data, sr):
         expressive_results = []
         for label, probs in chunk_results:
             boosted_probs = probs.copy()
+            
+            # Prosody Heuristic: Happy children/seniors often hit 'Fear' or 'PS'
+            # Happy laughter usually has ZCR > 0.08. 
+            zcr = numpy_zcr(chunk)
+            if zcr > 0.08 and emotions.index('happy') in range(len(emotions)):
+                boosted_probs[emotions.index('happy')] *= 1.4 # Specific Happy Boost
+            
             for i, name in enumerate(emotions):
                 if name != 'neutral':
                     boosted_probs[i] *= 1.5
