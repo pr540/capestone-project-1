@@ -139,8 +139,10 @@ def analyze_video_faces(video_path):
                 stats['happy'] += 1.2 # Weight happiness higher in fusion
             elif len(eyes) > 2:
                 stats['ps'] += 1 
-            elif len(eyes) < 1:
-                stats['sad'] += 1
+            elif len(eyes) == 0:
+                # No eyes visible usually means very squinty (Angry) or squinty-crying (Sad)
+                stats['angry'] += 0.4
+                stats['sad'] += 0.4
             else:
                 stats['neutral'] += 0.5
     
@@ -197,10 +199,15 @@ def predict_audio_emotion(audio_data, sr):
             boosted_probs = probs.copy()
             
             # Prosody Heuristic: Happy children/seniors often hit 'Fear' or 'PS'
-            # Happy laughter usually has ZCR > 0.08. 
+            # Angry/Aggressive signals often have high peak-to-average ratios.
             zcr = numpy_zcr(chunk)
+            peak = np.max(np.abs(chunk))
+            
             if zcr > 0.08 and emotions.index('happy') in range(len(emotions)):
-                boosted_probs[emotions.index('happy')] *= 1.4 # Specific Happy Boost
+                boosted_probs[emotions.index('happy')] *= 1.4 # Happy Boost
+            
+            if peak > 0.085 and emotions.index('angry') in range(len(emotions)):
+                boosted_probs[emotions.index('angry')] *= 1.35 # Aggression/Angry Boost
             
             for i, name in enumerate(emotions):
                 if name != 'neutral':
