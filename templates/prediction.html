@@ -19,15 +19,15 @@
                 <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
                     <div class="upload-box mb-4">
                         <label for="audio_file" class="custom-file-upload">
-                            <i class="fas fa-file-audio fa-3x mb-3"></i>
-                            <div class="h5 font-weight-bold">DROP SIGNAL CLOUD</div>
-                            <div class="small opacity-75">Click to browse your local directory</div>
+                            <i class="fas fa-microchip fa-3x mb-3"></i>
+                            <div class="h5 font-weight-bold">NEURAL SIGNAL UPLOAD</div>
+                            <div class="small opacity-75">Select Audio, Video, or Image file</div>
                         </label>
-                        <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="d-none">
+                        <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*,image/*" required class="d-none">
                         <div id="file-name-display" class="file-name-display text-white mt-2 font-italic"></div>
                     </div>
                     <div class="file-info text-light mb-4 small">
-                        <div class="info-item"><i class="fas fa-check-circle text-success mr-2"></i> WAV, MP3, OGG, FLAC, M4A, MP4, AVI,
+                        <div class="info-item"><i class="fas fa-check-circle text-success mr-2"></i> WAV, MP3, JPG, JPEG, PNG, WEBP, MP4, AVI,
                             MOV, MKV, WEBM</div>
                         <div class="info-item"><i class="fas fa-info-circle text-warning mr-2"></i> Maximum file size: 4.5MB (Vercel limit)
                         </div>
