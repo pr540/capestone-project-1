@@ -4,12 +4,18 @@
 <section class="predict-section">
     <div class="overlay-predict">
         <div class="upload-container">
-            <h1 class="text-white mb-4 text-center">Emotion Recognition</h1>
-            <div class="about-card p-4 rounded-lg shadow-lg">
+            <div class="cognitive-pulse mb-4"></div>
+            <h1 class="text-white mb-2 text-center" style="font-weight: 900; letter-spacing: 3px;">SIGNAL INPUT</h1>
+            <p class="text-light text-center mb-5 opacity-75">Upload audio/video for Neural Emotion Processing</p>
+            
+            <div class="about-card p-5 rounded-lg shadow-lg"
+                style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
                 <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
                     <div class="upload-box mb-4">
                         <label for="audio_file" class="custom-file-upload">
-                            <i class="fas fa-cloud-upload-alt"></i> <span>Choose Audio or Video File</span>
+                            <i class="fas fa-file-audio fa-3x mb-3"></i>
+                            <div class="h5 font-weight-bold">DROP SIGNAL CLOUD</div>
+                            <div class="small opacity-75">Click to browse your local directory</div>
                         </label>
                         <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*" required class="d-none">
                         <div id="file-name-display" class="file-name-display text-white mt-2 font-italic"></div>
@@ -35,20 +41,37 @@
 <style>
     .custom-file-upload {
         display: block;
-        padding: 15px 25px;
+        padding: 40px 25px;
         cursor: pointer;
-        background: rgba(232, 205, 48, 0.2);
+        background: rgba(232, 205, 48, 0.05);
         color: #e8cd30;
-        border: 2px dashed #e8cd30;
-        border-radius: 10px;
+        border: 2px dashed rgba(232, 205, 48, 0.4);
+        border-radius: 25px;
         text-align: center;
-        transition: all 0.3s ease;
-        font-weight: bold;
+        transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     }
 
     .custom-file-upload:hover {
-        background: rgba(232, 205, 48, 0.3);
-        transform: scale(1.02);
+        background: rgba(232, 205, 48, 0.1);
+        border-color: #e8cd30;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(232, 205, 48, 0.1);
+    }
+
+    .cognitive-pulse {
+        width: 80px;
+        height: 80px;
+        background: #e8cd30;
+        border-radius: 50%;
+        margin: 0 auto;
+        box-shadow: 0 0 0 0 rgba(232, 205, 48, 0.4);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(232, 205, 48, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 30px rgba(232, 205, 48, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(232, 205, 48, 0); }
     }
 
     .file-name-display {
