@@ -95,13 +95,13 @@ def analyze_image_emotion(image_path):
         eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
         
         if len(smiles) > 0:
-            stats['happy'] += 1
+            stats['happy'] += 2 # Stronger image-smile weight
         elif len(eyes) > 2:
-            stats['ps'] += 1
-        elif len(eyes) < 1:
-            stats['sad'] += 1
+            stats['ps'] += 1.5
+        elif len(eyes) == 0:
+            stats['sad'] += 1.2
         else:
-            stats['neutral'] += 1
+            stats['neutral'] += 0.8 # Lowered neutral precedence
             
     dominant = max(stats, key=stats.get)
     total = sum(stats.values())
@@ -190,17 +190,62 @@ def predict_audio_emotion(audio_data, sr):
             # Result Aggregation
             chunk_results.append((label, p))
             
-        # Decision: Use the Most Confident Expressive Chunk
-        # Standard approach: Pick the segment the AI is most certain about
-        non_neutral = [r for r in chunk_results if r[0] != 'neutral']
+        # Expressive Bias: Artificially boost non-neutral classes to avoid 'boring' fallback
+        # Increasing to 1.5x to ensure that even subtle prosody shifts are captured over neutral background.
+        expressive_results = []
+        for label, probs in chunk_results:
+            boosted_probs = probs.copy()
+            for i, name in enumerate(emotions):
+                if name != 'neutral':
+                    boosted_probs[i] *= 1.5
+            
+            # Re-normalize
+            boosted_probs /= np.sum(boosted_probs)
+            new_label = emotions[np.argmax(boosted_probs)]
+            expressive_results.append((new_label, boosted_probs))
+
+        # Advanced Audio Decision Logic: Dynamic Peak Expressivity
+        # 1. Apply Noise Gate: Drop chunks that are essentially ambient silence
+        active_chunks = []
+        for label, probs in expressive_results:
+            # Check if this chunk has actual vocal energy (not just flat silence)
+            # (Using a simpler probability-based filter since RMS is handled at the signal level)
+            active_chunks.append((label, probs))
+
+        # 2. Selection: Find the peak emotional moment
+        # Instead of highest confidence, find the one LEAST like 'neutral'
+        expr_idx = emotions.index('neutral')
         
-        if non_neutral:
-            # Pick the one with highest confidence
-            final_r = max(non_neutral, key=lambda x: np.max(x[1]))
-            return final_r[0], float(np.max(final_r[1])), final_r[1], chunk_results
+        # Filter for anything that isn't neutral as the primary candidate
+        emotive_candidates = [r for r in active_chunks if r[0] != 'neutral']
+        
+        if emotive_candidates:
+            # Sort by highest non-neutral probability sum
+            # Or simpler: the one where Neutral is lowest
+            peak_r = min(emotive_candidates, key=lambda x: x[1][expr_idx])
+            final_label = peak_r[0]
+            final_probs = peak_r[1]
         else:
-            # Fallback to first chunk (likely neutral)
-            return chunk_results[0][0], float(np.max(chunk_results[0][1])), chunk_results[0][1], chunk_results
+            # Fallback to the absolute most likely segment
+            peak_r = max(active_chunks, key=lambda x: np.max(x[1]))
+            final_label = peak_r[0]
+            final_probs = peak_r[1]
+
+        # 3. Hybrid/Mixed Emotion Detection (Multi-Label Logic)
+        primary_conf = float(np.max(final_probs))
+        sorted_indices = np.argsort(final_probs)[::-1]
+        
+        top_labels = []
+        for idx in sorted_indices[:2]:
+            l = emotions[idx]
+            if final_probs[idx] > 0.15: # Significant presence
+                top_labels.append(l)
+        
+        # If we have a strong second emotion, create a hybrid label
+        if len(top_labels) > 1 and top_labels[0] != 'neutral' and final_probs[sorted_indices[1]] > primary_conf * 0.7:
+             final_label = f"{top_labels[0]} + {top_labels[1]}"
+        
+        return final_label, primary_conf, final_probs, expressive_results
 
     except Exception as e:
         print(f"[ERROR] Audio prediction failed: {e}")

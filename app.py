@@ -130,35 +130,48 @@ def _get_audio_results(audio_path, sr):
     return res_audio + (rms,)
 
 def _fuse_emotions(audio_data, vis_data):
-    """Adaptive Cognitive Fusion Engine with Signal-to-Label Mapping."""
+    """Ultra-Responsive Cognitive Fusion with Hybrid Label Support."""
     a_emo, a_conf, a_probs, _, rms = audio_data
     v_emo, v_conf, v_stats = vis_data
 
-    # 1. Handle Silence/Ambient Background
-    if rms < 0.0012:
-        if v_emo != 'N/A' and v_conf > 0.05:
-            return v_emo, v_conf, "Visual Dominant (Acoustic Noise Floor)"
-        return "neutral", 0.9, "Steady-State Ambient Signal"
+    # 1. Intelligence Gate: Neutral Blockade
+    # If the user is speaking or moving, we prioritize EXPRESSIVE labels.
+    is_silent = rms < 0.0008
     
-    # Technical Identity for the user (MFCC/MLE Proof)
-    mle_profile = "v1.4_Neural_MLP"
-    tech_note = f"Identity: {mle_profile} | Signal Energy: {rms:.4f} | Acc: {a_conf*100:.1f}%"
+    # Technical Note
+    mle_profile = "v1.5_Hybrid_Neural"
+    tech_note = f"Engine: {mle_profile} | Signal Energy: {rms:.5f} | Audio Acc: {a_conf*100:.1f}%"
 
-    # 2. Logic Gates (Fixing Bias Shifts)
-    # Happy is often confused with Angry or Fear if pitch is high. 
-    # Use Visual Smile marker as the ultimate anchor.
-    if v_emo == 'happy' and v_conf > 0.1:
-        return 'happy', max(a_conf, v_conf, 0.75), f"Visual Smile Anchoring | {tech_note}"
+    # 2. Case: Global Silence
+    if is_silent and v_emo == 'N/A':
+        return "neutral", 0.99, "Steady-State Background (Silent)"
 
-    # 3. High-Confidence Acoustic Overrides
-    if a_conf > 0.90:
-        return a_emo, a_conf, f"Primary Acoustic {a_emo.upper()} Signal Detected"
+    # 3. Hybrid Preservation
+    # If Audio already detected mixed emotions (e.g., 'happy + ps')
+    if "+" in a_emo:
+        # If visual confirms one of them, boost it
+        if v_emo != 'N/A' and v_emo in a_emo:
+            return a_emo, max(a_conf, v_conf), f"Hybrid Confirmed via Vision | {tech_note}"
+        return a_emo, a_conf, f"Mixed Signal Patterns Detected | {tech_note}"
 
-    # 4. Standard Fusion Logic
-    if v_emo != 'N/A' and v_conf > a_conf + 0.15:
-        return v_emo, v_conf, f"Visual Feature Priority Override | {tech_note}"
+    # 4. Strict Neutral Suppression
+    # If one engine sees emotion and the other is just neutral/N/A
+    if a_emo != 'neutral' and v_emo in ['neutral', 'N/A']:
+        return a_emo, a_conf, f"Acoustic Dominance: {a_emo.upper()} | {tech_note}"
+    
+    if v_emo != 'N/A' and v_emo != 'neutral' and a_emo == 'neutral':
+        if v_conf > 0.05: # High visual sensitivity
+            return v_emo, v_conf, f"Visual Anchor: {v_emo.upper()} detected | {tech_note}"
 
-    return a_emo, a_conf, f"Integrated Cognitive Path | {tech_note}"
+    # 5. Standard Fusion with Happy/Smile Priority
+    if v_emo == 'happy' and v_conf > 0.05:
+        return 'happy', max(a_conf, v_conf, 0.7), f"Smile Anchored Sentiment | {tech_note}"
+
+    # Default to the most expressive available
+    if a_emo == 'neutral' and v_emo != 'N/A' and v_emo != 'neutral':
+        return v_emo, v_conf, tech_note
+        
+    return a_emo, a_conf, tech_note
 
 @app.route('/predict', methods=['POST'])
 def predict():

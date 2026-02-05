@@ -233,22 +233,40 @@
       Final Perceptual Decision</div>
     
     {% set emo_clean = predicted_emotion|lower|trim %}
-    {% if emo_clean == 'happy' %}{% set emoji = '😊' %}{% set desc = 'Positive valence detected with high acoustic/visual
-    alignment' %}
-    {% elif emo_clean == 'angry' %}{% set emoji = '😠' %}{% set desc = 'Acoustic aggression filters identified intense
-    frustration' %}
-    {% elif emo_clean == 'disgust' %}{% set emoji = '🤢' %}{% set desc = 'Subtle patterns of distaste or social discomfort
-    detected' %}
-    {% elif emo_clean == 'fear' %}{% set emoji = '😨' %}{% set desc = 'Signal patterns indicate high-alert/distress state'
-    %}
-    {% elif emo_clean == 'neutral' %}{% set emoji = '😐' %}{% set desc = 'System steady-state: No dominant emotional peaks'
-    %}
-    {% elif emo_clean in ['ps', 'pleasant surprise', 'surprise'] %}{% set emoji = '🤩' %}{% set desc = 'Positive-arousal
-    detected with surprise features' %}
-    {% elif emo_clean == 'sad' %}{% set emoji = '😢' %}{% set desc = 'Low-energy signal consistent with grief/sadness' %}
-    {% else %}{% set emoji = '🤖' %}{% set desc = 'Automated Signal Breakdown complete' %}{% endif %}
+    {% set emoji_main = '🤖' %}
+    {% set desc = 'Automated Signal Breakdown complete' %}
+    
+    {% if '+' in emo_clean %}
+    {% set emos = emo_clean.split('+') %}
+    {% set e1 = emos[0]|trim %}
+    {% set e2 = emos[1]|trim %}
+    {% if e1 == 'angry' %}{% set em1 = '😠' %}{% elif e1 == 'disgust' %}{% set em1 = '🤢' %}{% elif e1 == 'fear' %}{% set
+    em1 = '😨' %}{% elif e1 == 'happy' %}{% set em1 = '😊' %}{% elif e1 == 'ps' or e1 == 'pleasant surprise' %}{% set em1 =
+    '🤩' %}{% elif e1 == 'sad' %}{% set em1 = '😢' %}{% else %}{% set em1 = '😐' %}{% endif %}
+    {% if e2 == 'angry' %}{% set em2 = '😠' %}{% elif e2 == 'disgust' %}{% set em2 = '🤢' %}{% elif e2 == 'fear' %}{% set
+    em2 = '😨' %}{% elif e2 == 'happy' %}{% set em2 = '😊' %}{% elif e2 == 'ps' or e2 == 'pleasant surprise' %}{% set em2 =
+    '🤩' %}{% elif e2 == 'sad' %}{% set em2 = '😢' %}{% else %}{% set em2 = '😐' %}{% endif %}
+    {% set emoji_main = em1 + ' ' + em2 %}
+    {% set desc = 'Hybrid Cognitive Response: Multiple emotional frequencies identified within the signal stream' %}
+    {% else %}
+    {% if emo_clean == 'happy' %}{% set emoji_main = '😊' %}{% set desc = 'High-arousal positive valence detected with high
+    neural alignment' %}
+    {% elif emo_clean == 'angry' %}{% set emoji_main = '😠' %}{% set desc = 'Acoustic/Visual aggression filters identified
+    intense emotional spikes' %}
+    {% elif emo_clean == 'disgust' %}{% set emoji_main = '🤢' %}{% set desc = 'Aversive signal patterns identified
+    consistent with distaste features' %}
+    {% elif emo_clean == 'fear' %}{% set emoji_main = '😨' %}{% set desc = 'Neural patterns indicate high-stress/distress
+    alert state' %}
+    {% elif emo_clean == 'neutral' %}{% set emoji_main = '😐' %}{% set desc = 'System Steady-State: Signal patterns are
+    balanced with no dominant peaks' %}
+    {% elif emo_clean in ['ps', 'pleasant surprise', 'surprise'] %}{% set emoji_main = '🤩' %}{% set desc = 'Positive
+    surprise markers identified in current cognitive stream' %}
+    {% elif emo_clean == 'sad' %}{% set emoji_main = '😢' %}{% set desc = 'Low-energy signal consistent with melancholic/sad
+    features' %}
+    {% endif %}
+    {% endif %}
 
-    <div class="emotion-emoji">{{ emoji }}</div>
+    <div class="emotion-emoji">{{ emoji_main }}</div>
     <div class="emotion-name">{{ predicted_emotion.replace('ps', 'Pleasant Surprise').title() }}</div>
     <div class="emotion-description text-muted font-italic mb-5"
       style="font-size: 1.15rem; line-height: 1.6; max-width: 600px; margin: 0 auto 40px;">"{{ desc }}"</div>

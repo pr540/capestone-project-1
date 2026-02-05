@@ -88,8 +88,10 @@ def extract_features_combined(y, sr):
     if len(y) < 2048:
         y = np.pad(y, (0, 2048 - len(y)))
     
-    # Fixed Normalization: Don't use per-chunk peak boost, it kills volume features.
-    # Just ensure it's in a reasonable range.
+    # Pre-Emphasis: Boost high frequencies (Emotions like Happy/Angry)
+    y = np.append(y[0], y[1:] - 0.97 * y[:-1])
+    
+    # Fixed Normalization
     max_y = np.max(np.abs(y))
     if max_y > 1.0: y = y / max_y
     
