@@ -4,68 +4,79 @@
 <section class="history-section">
     <div class="overlay-history">
         <div class="container">
-            <h2 class="text-center mb-5 text-white" style="font-weight: bold;">📊 Analyzed Prediction History</h2>
-
-            <div class="card history-card">
-                <div class="card-body">
+            <h2 class="text-center mb-5 text-white" style="font-weight: bold; letter-spacing: 2px;">📊 ANALYZED SIGNAL ARCHIVE</h2>
+            <div class="d-flex justify-content-center mb-4">
+                <div class="badge badge-{% if db_status == 'Online' %}success{% else %}warning{% endif %} px-4 py-2"
+                    style="border-radius: 50px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255, 255, 255, 0.05);">
+                    <i class="fas fa-database mr-2"></i> NEURAL DB STORAGE: {{ db_status|upper }}
+                </div>
+            </div>
+            <div class="card history-card"
+                style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 30px;">
+                <div class="card-body p-4">
                     <div class="table-responsive">
-                        <table class="table table-hover table-glass">
-                            <thead>
-                                <tr>
+                        <table class="table table-borderless text-white" style="border-collapse: separate; border-spacing: 0 10px;">
+                            <thead style="border-bottom: 2px solid rgba(255,255,255,0.1);">
+                                <tr style="text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; color: #e8cd30;">
                                     <th>ID</th>
-                                    <th>Timestamp</th>
+                                    <th>Signal Date</th>
                                     <th>Filename</th>
-                                    <th>Audio Emotion</th>
-                                    <th>Visual Emotion</th>
-                                    <th>Final Result</th>
-                                    <th>Accuracy/Conf</th>
+                                    <th>Audio <i class="fas fa-microphone-alt ml-1"></i></th>
+                                    <th>Visual <i class="fas fa-video ml-1"></i></th>
+                                    <th>Final <i class="fas fa-brain ml-1"></i></th>
+                                    <th>Accuracy</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for prediction in predictions %}
-                                <tr>
-                                    <td>{{ prediction.id }}</td>
-                                    <td>{{ prediction.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                                    <td><small>{{ prediction.filename }}</small></td>
+                                <tr style="background: rgba(255,255,255,0.05); border-radius: 15px; transition: all 0.3s ease;">
+                                    <td style="border-radius: 15px 0 0 15px; font-weight: bold; color: rgba(255,255,255,0.5);">#{{ prediction.id }}</td>
+                                    <td>{{ prediction.timestamp.strftime('%d %b, %H:%M') }}</td>
+                                    <td><small class="opacity-75">{{ prediction.filename }}</small></td>
                                     <td>
-                                        <span class="emotion-badge badge-{{ (prediction.audio_emotion|default('neutral')).lower().replace(' ', '_') }}">
-                                            {{ prediction.audio_emotion }}
-                                        </span>
+                                        {% set a_e = (prediction.audio_emotion|default('neutral')).lower().strip() %}
+                                        <span class="emoji-label" style="font-size: 1.2rem;">{{ emoji_map.get(a_e, '😐') }}</span>
+                                        <small class="text-uppercase" style="font-size: 0.65rem;">{{ prediction.audio_emotion }}</small>
                                         </td>
                                         <td>
-                                        <span class="emotion-badge badge-{{ (prediction.visual_emotion|default('neutral')).lower().replace(' ', '_') }}">
-                                            {{ prediction.visual_emotion }}
-                                        </span>
+                                        {% set v_e = (prediction.visual_emotion|default('neutral')).lower().strip() %}
+                                        <span class="emoji-label" style="font-size: 1.2rem;">{{ emoji_map.get(v_e, '😐') if v_e != 'n/a' else '❓' }}</span>
+                                        <small class="text-uppercase" style="font-size: 0.65rem;">{{ prediction.visual_emotion }}</small>
                                         </td>
                                         <td>
-                                        <span class="emotion-badge badge-{{ (prediction.final_emotion|default('neutral')).lower().replace(' ', '_') }}">
-                                            {{ prediction.final_emotion|upper }}
-                                        </span>
+                                        {% set f_e = (prediction.final_emotion|default('neutral')).lower().strip() %}
+                                        <div class="d-flex align-items-center">
+                                            <span class="mr-2" style="font-size: 1.5rem;">{{ emoji_map.get(f_e, '😐') }}</span>
+                                            <span class="badge badge-warning text-dark font-weight-bold" style="font-size: 0.7rem;">{{
+                                                prediction.final_emotion|upper }}</span>
+                                        </div>
                                     </td>
-                                    <td>
-                                        {% set percent = (prediction.confidence|default(0)|float * 100)|round(1) %}
-                                        <div class="d-flex align-items-center" style="min-width: 120px;">
-                                            <div class="progress flex-grow-1 mr-2" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
-                                                <div class="progress-bar bg-success history-progress-bar" role="progressbar" data-percent="{{ percent }}">
-                                                </div>
+                                    <td style="border-radius: 0 15px 15px 0;">
+                                        {% set percent = (prediction.confidence|default(0)|float * 100)|round(0) %}
+                                        <div class="d-flex align-items-center" style="min-width: 100px;">
+                                            <div class="progress flex-grow-1 mr-2"
+                                                style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                                                <div class="progress-bar bg-success history-progress-bar" role="progressbar" data-percent="{{ percent }}"
+                                                    style="box-shadow: 0 0 10px rgba(77, 255, 77, 0.4);"></div>
                                             </div>
-                                            <small class="text-white">{{ percent }}%</small>
+                                            <small class="font-weight-bold">{{ percent }}%</small>
                                             </div>
                                             </td>
                                             </tr>
                                             {% else %}
                                             <tr>
                                     <td colspan="7" class="text-center py-5">
-                                        <div class="text-muted">
-                                            <i class="fas fa-history fa-x3 mb-3"></i>
-                                            <p>No analysis history found yet.</p>
-                                            <a href="/prediction_page" class="btn btn-warning mt-3">Start First Analysis</a>
+                                        <div class="opacity-50">
+                                            <i class="fas fa-box-open fa-3x mb-3" style="color: #e8cd30;"></i>
+                                            <p>No analyzed signals found in history.</p>
+                                            <a href="/prediction_page" class="btn btn-sm btn-outline-warning mt-2" style="border-radius: 20px;">Launch
+                                                Detector</a>
                                         </div>
                                     </td>
-                                    </tr>
-                                    {% endfor %}
-                                    </tbody>
-                                    </table>
+                                </tr>
+                                {% endfor %}
+                                </tbody>
+                                </table>
                     </div>
                 </div>
 {% if predictions %}

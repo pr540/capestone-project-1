@@ -164,27 +164,7 @@ def predict_audio_emotion(audio_data, sr):
             else:
                 label = str(raw_pred)
             
-            # Feature Correction: Disgust/Sad often confused for Happy by the model
-            # Happy = High Energy + High ZCR (Laughter). Disgust/Sad = Low ZCR.
-            if label == 'happy':
-                try:
-                    zcr = numpy_zcr(chunk)
-                    rms = np.sqrt(np.mean(chunk**2))
-                    
-                    # Aggressive filter: Real laughter usually has ZCR > 0.1
-                    # If ZCR is lower, it's likely speech/grunt (Disgust) or crying (Sad)
-                    if zcr < 0.09: 
-                         if rms < 0.005: 
-                             label = 'sad'
-                             p = np.zeros_like(p)
-                             p[6] = 0.9
-                         else:
-                             label = 'disgust'
-                             p = np.zeros_like(p)
-                             p[1] = 0.9
-                except Exception: 
-                    pass
-                
+            # Result Aggregation
             chunk_results.append((label, p))
             
         # Decision: Use the Most Confident Expressive Chunk

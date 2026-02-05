@@ -80,7 +80,7 @@ def analyze():
                 db.create_all()
         except Exception as e2:
             print(f"[ERROR] Database creation failed: {e2}")
-    return render_template('history.html', predictions=preds, title="History")
+    return render_template('history.html', predictions=preds, emoji_map=EMOJI_MAP, title="History", db_status="Online")
 
 @app.route('/clear_history', methods=['POST'])
 def clear_history():
