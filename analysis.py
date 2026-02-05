@@ -198,29 +198,38 @@ def predict_audio_emotion(audio_data, sr):
         for label, probs in chunk_results:
             boosted_probs = probs.copy()
             
-            # Prosody Heuristic: Multi-Emotion Sensitivity
+            # 3. Prosody Heuristic: Definitive 7-Emotion Calibration
             zcr = numpy_zcr(chunk)
             peak = np.max(np.abs(chunk))
             
-            # Happy: High pitch + Rhythmic
+            # Happy: High pitch + Rhythmic Laughter Pattern
             if zcr > 0.085 and emotions.index('happy') in range(len(emotions)):
-                boosted_probs[emotions.index('happy')] *= 1.45 
+                boosted_probs[emotions.index('happy')] *= 1.5
             
-            # Angry: High energy peaks
+            # Angry: High energy peaks (Shouting/Harshness)
             if peak > 0.09 and emotions.index('angry') in range(len(emotions)):
-                boosted_probs[emotions.index('angry')] *= 1.35
+                boosted_probs[emotions.index('angry')] *= 1.4
                 
-            # Fear: High pitch + High Arousal (often hits similar range to Happy/PS)
+            # Fear: High pitch + Shaky Arousal (Stress patterns)
             if zcr > 0.075 and peak > 0.05 and emotions.index('fear') in range(len(emotions)):
-                boosted_probs[emotions.index('fear')] *= 1.3 
+                boosted_probs[emotions.index('fear')] *= 1.35 
                 
-            # Disgust: Mid-Low Energy + Constant Prosody (often misclassified as Sad)
+            # Disgust: Mid-Range Energy + Constricted Prosody
             if 0.02 < peak < 0.06 and emotions.index('disgust') in range(len(emotions)):
-                boosted_probs[emotions.index('disgust')] *= 1.35
-            
+                boosted_probs[emotions.index('disgust')] *= 1.4
+                
+            # Sad: Very Low Energy + Flat Pitch (Melancholic)
+            if peak < 0.015 and emotions.index('sad') in range(len(emotions)):
+                boosted_probs[emotions.index('sad')] *= 1.35
+                
+            # Pleasant Surprise (ps): High Energy Tonal Spikes (Sudden Joy)
+            if peak > 0.07 and zcr > 0.06 and emotions.index('ps') in range(len(emotions)):
+                boosted_probs[emotions.index('ps')] *= 1.4
+
+            # 4. Universal Expressive Boost (Block Neutral Noise)
             for i, name in enumerate(emotions):
                 if name != 'neutral':
-                    boosted_probs[i] *= 1.5
+                    boosted_probs[i] *= 1.55
             
             # Re-normalize
             boosted_probs /= np.sum(boosted_probs)
