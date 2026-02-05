@@ -76,7 +76,7 @@ def get_model():
     return model
 
 def analyze_image_emotion(image_path):
-    """Analyze a single static image for emotional features."""
+    """Deep Heuristic Signal Processing for Static Image Emotion Detection."""
     dets = get_detector()
     if not dets or not cv2: return "N/A", 0.0, {}
     
@@ -85,28 +85,39 @@ def analyze_image_emotion(image_path):
     
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = dets['face'].detectMultiScale(gray, 1.1, 5)
-    stats = {e: 0 for e in emotions}
     
-    if len(faces) == 0: return "N/A", 0.0, stats
+    # ML Concept: Probabilistic Feature Distribution (Weighted Voting)
+    scores = {e: 0.05 for e in emotions} # Baseline prior
+    
+    if len(faces) == 0: return "N/A", 0.0, scores
     
     for (x, y, w, h) in faces:
         roi_gray = gray[y:y+h, x:x+w]
-        smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3)
-        eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
+        smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 5)
+        eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 4)
         
+        # Feature-to-Label Mapping (Weighted)
         if len(smiles) > 0:
-            stats['happy'] += 2 # Stronger image-smile weight
-        elif len(eyes) > 2:
-            stats['ps'] += 1.5
+            scores['happy'] += 3.0
+            scores['ps'] += 0.8
+        
+        if len(eyes) > 2:
+            scores['ps'] += 2.5
+            scores['fear'] += 1.2 # Wide eyes feature
         elif len(eyes) == 0:
-            stats['sad'] += 1.2
+            # Squinting/Occluded eyes
+            scores['angry'] += 1.8
+            scores['sad'] += 1.5
+            scores['disgust'] += 1.0
         else:
-            stats['neutral'] += 0.8 # Lowered neutral precedence
+            scores['neutral'] += 1.2
             
-    dominant = max(stats, key=stats.get)
-    total = sum(stats.values())
-    conf = stats[dominant] / total if total > 0 else 0.0
-    return str(dominant), float(conf), stats
+    # Re-normalize into probability distribution
+    total = sum(scores.values())
+    probs = {e: round(s/total, 4) for e, s in scores.items()}
+    
+    dominant = max(probs, key=probs.get)
+    return str(dominant), float(probs[dominant]), probs
 
 def analyze_video_faces(video_path):
     """Analyze video frames for heuristic expression markers."""

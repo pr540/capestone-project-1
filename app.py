@@ -6,7 +6,7 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
 from werkzeug.utils import secure_filename
 from database import db, PredictionResult
-from utils import allowed_file, is_video_file, extract_audio_from_video
+from utils import allowed_file, is_video_file, is_image_file, extract_audio_from_video
 from analysis import analyze_video_faces, predict_audio_emotion, warmup
 from concurrent.futures import ThreadPoolExecutor
 from audio_features_numpy import extract_features_combined
