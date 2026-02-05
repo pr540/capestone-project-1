@@ -130,35 +130,35 @@ def _get_audio_results(audio_path, sr):
     return res_audio + (rms,)
 
 def _fuse_emotions(audio_data, vis_data):
-    """Balanced fusion logic for final decision."""
+    """Refined fusion logic with dynamic sensitivity and voice type suitability."""
     a_emo, a_conf, a_probs, _, rms = audio_data
     v_emo, v_conf, v_stats = vis_data
 
-    # 1. Handle Silence
-    if rms < 0.002:
-        if v_emo != 'N/A' and v_conf > 0.05:
-            return v_emo, v_conf, "Visual Scan Dominant (Silent Audio)"
-        return "neutral", 0.9, "Neutral/Silent Background"
+    # 1. Handle Silence/Noise floor
+    if rms < 0.0015:
+        if v_emo != 'N/A' and v_conf > 0.04:
+            return v_emo, v_conf, "Visual Stream Dominant (Acoustic Silence)"
+        return "neutral", 0.95, "Ambient/Silent Background Detection"
     
-    # 2. Mixture Detection
+    # 2. Advanced Mixture Scaling
     sorted_idx = np.argsort(a_probs)[::-1]
     top1_val, top2_val = a_probs[sorted_idx[0]], a_probs[sorted_idx[1]]
     
-    note = "Balanced Signal Analysis"
-    if top2_val > (top1_val * 0.7) and top2_val > 0.15:
-        note = f"Complex Signal: {a_emo.upper()} + {EMOTIONS_ORDER[sorted_idx[1]].upper()}"
+    # Signal Suitability Note (Generalizing for all age patterns as requested)
+    pattern = "Standard Adult/Senior" if rms > 0.005 else "Child/Soft-Speak"
+    note = f"Signal Profile: {pattern} Pattern"
 
-    # 3. Dynamic Priority Logic
-    # If vision is MUCH stronger than audio, trust vision (fixes "Fear" bias)
-    if v_emo != 'N/A' and v_conf > a_conf + 0.15:
-        return v_emo, v_conf, f"Visual Override: Strong {v_emo.upper()} detected"
+    # 3. Conflict Resolution (Fixing Fear Bias)
+    # If Visual is Happy and Audio is Fear, it's often high-pitched excitement misclassified as fear.
+    if v_emo == 'happy' and a_emo == 'fear':
+        return 'happy', max(v_conf, 0.6), "Excitement detected (High-Pitch Correction)"
 
-    # 4. Critical Emotion Sensitivity (Prioritize high-confidence negatives)
-    if a_emo in ['disgust', 'sad', 'fear', 'angry'] and a_conf > 0.35:
-        # Check if vision strongly contradicts with Happy
-        if v_emo == 'happy' and v_conf > 0.1:
-             return 'happy', v_conf, "Visual Happiness over Acoustic Tension"
-        return a_emo, a_conf, f"High-Alert: {note}"
+    # 4. Standard Fusion
+    if v_emo != 'N/A' and v_conf > a_conf + 0.2:
+        return v_emo, v_conf, f"Visual Override: {v_emo.upper()} feature dominant"
+
+    if a_emo in ['disgust', 'sad', 'fear', 'angry'] and a_conf > 0.45:
+        return a_emo, a_conf, f"Primary Detection: {a_emo.upper()} ({note})"
     
     return a_emo, a_conf, note
 
