@@ -198,16 +198,25 @@ def predict_audio_emotion(audio_data, sr):
         for label, probs in chunk_results:
             boosted_probs = probs.copy()
             
-            # Prosody Heuristic: Happy children/seniors often hit 'Fear' or 'PS'
-            # Angry/Aggressive signals often have high peak-to-average ratios.
+            # Prosody Heuristic: Multi-Emotion Sensitivity
             zcr = numpy_zcr(chunk)
             peak = np.max(np.abs(chunk))
             
-            if zcr > 0.08 and emotions.index('happy') in range(len(emotions)):
-                boosted_probs[emotions.index('happy')] *= 1.4 # Happy Boost
+            # Happy: High pitch + Rhythmic
+            if zcr > 0.085 and emotions.index('happy') in range(len(emotions)):
+                boosted_probs[emotions.index('happy')] *= 1.45 
             
-            if peak > 0.085 and emotions.index('angry') in range(len(emotions)):
-                boosted_probs[emotions.index('angry')] *= 1.35 # Aggression/Angry Boost
+            # Angry: High energy peaks
+            if peak > 0.09 and emotions.index('angry') in range(len(emotions)):
+                boosted_probs[emotions.index('angry')] *= 1.35
+                
+            # Fear: High pitch + High Arousal (often hits similar range to Happy/PS)
+            if zcr > 0.075 and peak > 0.05 and emotions.index('fear') in range(len(emotions)):
+                boosted_probs[emotions.index('fear')] *= 1.3 
+                
+            # Disgust: Mid-Low Energy + Constant Prosody (often misclassified as Sad)
+            if 0.02 < peak < 0.06 and emotions.index('disgust') in range(len(emotions)):
+                boosted_probs[emotions.index('disgust')] *= 1.35
             
             for i, name in enumerate(emotions):
                 if name != 'neutral':
