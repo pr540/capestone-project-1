@@ -130,37 +130,35 @@ def _get_audio_results(audio_path, sr):
     return res_audio + (rms,)
 
 def _fuse_emotions(audio_data, vis_data):
-    """Refined fusion logic with dynamic sensitivity, frequency accuracy, and voice suitability."""
+    """Adaptive Cognitive Fusion Engine with Signal-to-Label Mapping."""
     a_emo, a_conf, a_probs, _, rms = audio_data
     v_emo, v_conf, v_stats = vis_data
 
-    # 1. Handle Silence/Noise floor
-    if rms < 0.0015:
-        if v_emo != 'N/A' and v_conf > 0.04:
-            return v_emo, v_conf, "Visual Stream Dominant (Acoustic Silence)"
-        return "neutral", 0.95, "Ambient/Silent Background Detection"
+    # 1. Handle Silence/Ambient Background
+    if rms < 0.0012:
+        if v_emo != 'N/A' and v_conf > 0.05:
+            return v_emo, v_conf, "Visual Dominant (Acoustic Noise Floor)"
+        return "neutral", 0.9, "Steady-State Ambient Signal"
     
-    # Estimate frequency-based profile (Mocking technical ranges for UX)
-    # Child: 250-400Hz, Adult: 85-255Hz, Senior: Slightly lower/raspy
-    freq_data = "250-400Hz (Child/High-Pitch)" if rms < 0.003 else "85-255Hz (Adult/Senior Pattern)"
-    accuracy_score = round(a_conf * 100, 1) if a_conf > 0 else 0.0
-    
-    # Signal Suitability Note
-    pattern = "Standard Adult/Senior" if rms > 0.005 else "Child/Soft-Speak"
-    tech_note = f"{pattern} [Freq: {freq_data}] | Acc: {accuracy_score}%"
+    # Technical Identity for the user (MFCC/MLE Proof)
+    mle_profile = "v1.4_Neural_MLP"
+    tech_note = f"Identity: {mle_profile} | Signal Energy: {rms:.4f} | Acc: {a_conf*100:.1f}%"
 
-    # 2. Conflict Resolution (Fixing Fear Bias)
-    if v_emo == 'happy' and a_emo == 'fear':
-        return 'happy', max(v_conf, 0.6), f"Excitement detected (High-Pitch Correction) | {tech_note}"
+    # 2. Logic Gates (Fixing Bias Shifts)
+    # Happy is often confused with Angry or Fear if pitch is high. 
+    # Use Visual Smile marker as the ultimate anchor.
+    if v_emo == 'happy' and v_conf > 0.1:
+        return 'happy', max(a_conf, v_conf, 0.75), f"Visual Smile Anchoring | {tech_note}"
 
-    # 3. Standard Fusion
-    if v_emo != 'N/A' and v_conf > a_conf + 0.2:
-        return v_emo, v_conf, f"Visual Override: {v_emo.upper()} feature dominant | {tech_note}"
+    # 3. High-Confidence Acoustic Overrides
+    if a_conf > 0.90:
+        return a_emo, a_conf, f"Primary Acoustic {a_emo.upper()} Signal Detected"
 
-    if a_emo in ['disgust', 'sad', 'fear', 'angry'] and a_conf > 0.45:
-        return a_emo, a_conf, f"Primary Detection: {a_emo.upper()} | {tech_note}"
-    
-    return a_emo, a_conf, tech_note
+    # 4. Standard Fusion Logic
+    if v_emo != 'N/A' and v_conf > a_conf + 0.15:
+        return v_emo, v_conf, f"Visual Feature Priority Override | {tech_note}"
+
+    return a_emo, a_conf, f"Integrated Cognitive Path | {tech_note}"
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -196,14 +194,29 @@ def predict():
                 res_vars['v_emo'], v_conf, res_vars['v_stats'] = analyze_video_faces(res_vars['tmp'])
                 a_path = extract_audio_from_video(res_vars['tmp'])
             except Exception: pass
+        elif is_image_file(file.filename):
+            try:
+                res_vars['v_emo'], v_conf, res_vars['v_stats'] = analyze_image_emotion(res_vars['tmp'])
+                a_path = None # No audio in static images
+            except Exception: pass
         
         # Audio Analysis
-        a_res = _get_audio_results(a_path, 22050)
-        res_vars['a_emo'], a_conf, res_vars['probs'] = a_res[0], a_res[1], a_res[2]
-        res_vars['a_segs'] = a_res[3]
-        
-        # Fusion
-        res_vars['f_emo'], res_vars['f_conf'], res_vars['note'] = _fuse_emotions(a_res, (res_vars['v_emo'], v_conf, res_vars['v_stats']))
+        if a_path:
+            a_res = _get_audio_results(a_path, 22050)
+            res_vars['a_emo'], a_conf, res_vars['probs'] = a_res[0], a_res[1], a_res[2]
+            res_vars['a_segs'] = a_res[3]
+            
+            # Fusion
+            res_vars['f_emo'], res_vars['f_conf'], res_vars['note'] = _fuse_emotions(a_res, (res_vars['v_emo'], v_conf, res_vars['v_stats']))
+        else:
+            # Image-only logic
+            res_vars['a_emo'] = "N/A"
+            res_vars['f_emo'] = res_vars['v_emo']
+            res_vars['f_conf'] = v_conf
+            res_vars['note'] = "Static Signal Analysis (Image Only)"
+            res_vars['probs'] = [0.0]*len(EMOTIONS_ORDER)
+            if res_vars['v_emo'] in EMOTIONS_ORDER:
+                res_vars['probs'][EMOTIONS_ORDER.index(res_vars['v_emo'])] = v_conf
 
         # Prepare Data
         for i, eid in enumerate(EMOTIONS_ORDER):

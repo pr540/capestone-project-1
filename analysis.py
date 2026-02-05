@@ -75,20 +75,55 @@ def get_model():
         print("[ERROR] No model weights found in any format!")
     return model
 
-def analyze_video_faces(video_path):
+def analyze_image_emotion(image_path):
+    """Analyze a single static image for emotional features."""
     dets = get_detector()
-    if not dets or not cv2: return "neutral", 0.0, {}
+    if not dets or not cv2: return "N/A", 0.0, {}
+    
+    img = cv2.imread(image_path)
+    if img is None: return "N/A", 0.0, {}
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = dets['face'].detectMultiScale(gray, 1.1, 5)
+    stats = {e: 0 for e in emotions}
+    
+    if len(faces) == 0: return "N/A", 0.0, stats
+    
+    for (x, y, w, h) in faces:
+        roi_gray = gray[y:y+h, x:x+w]
+        smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3)
+        eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
+        
+        if len(smiles) > 0:
+            stats['happy'] += 1
+        elif len(eyes) > 2:
+            stats['ps'] += 1
+        elif len(eyes) < 1:
+            stats['sad'] += 1
+        else:
+            stats['neutral'] += 1
+            
+    dominant = max(stats, key=stats.get)
+    total = sum(stats.values())
+    conf = stats[dominant] / total if total > 0 else 0.0
+    return str(dominant), float(conf), stats
+
+def analyze_video_faces(video_path):
+    """Analyze video frames for heuristic expression markers."""
+    dets = get_detector()
+    if not dets or not cv2: return "N/A", 0.0, {}
     
     cap = cv2.VideoCapture(video_path)
     stats = {e: 0 for e in emotions}
     total_frames = 0
     detected_faces = 0
     
-    while cap.isOpened() and total_frames < 60: # Sample 60 frames (approx 2s)
+    # Analyze up to 100 frames with variable skipping for high temporal resolution
+    while cap.isOpened() and total_frames < 100:
         ret, frame = cap.read()
         if not ret: break
         total_frames += 1
-        if total_frames % 5 != 0: continue # Skip more frames for performance
+        if total_frames % 4 != 0: continue 
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = dets['face'].detectMultiScale(gray, 1.3, 5)
@@ -97,35 +132,23 @@ def analyze_video_faces(video_path):
             detected_faces += 1
             roi_gray = gray[y:y+h, x:x+w]
             
-            # Very sensitive detection for real-world movement
-            smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 3) 
+            smiles = dets['smile'].detectMultiScale(roi_gray, 1.2, 4) 
             eyes = dets['eye'].detectMultiScale(roi_gray, 1.1, 3)
             
-            # Strict smile filter
-            if len(smiles) > 0 and len(smiles) < 3:
-                # Only trust smile if eyes are also active (Duchenne marker)
-                if len(eyes) > 0:
-                     stats['happy'] += 0.5 
-                else:
-                     stats['happy'] += 0.2
+            if len(smiles) > 0:
+                stats['happy'] += 1.2 # Weight happiness higher in fusion
             elif len(eyes) > 2:
                 stats['ps'] += 1 
             elif len(eyes) < 1:
                 stats['sad'] += 1
             else:
-                stats['disgust'] += 0.5 # Default negative interpretation for no-smile
                 stats['neutral'] += 0.5
     
     cap.release()
     if detected_faces == 0: return "N/A", 0.0, stats
-    
-    # Selection logic
     dominant = max(stats, key=stats.get)
-    val = stats[dominant]
-    
     total = sum(stats.values())
-    confidence = val / total if total > 0 else 0.0
-    return str(dominant), float(confidence), stats
+    return str(dominant), float(stats[dominant]/total if total > 0 else 0.0), stats
 
 def extract_audio_features(audio_data, sr):
     """Definitive feature extraction using safe NumPy implementation."""

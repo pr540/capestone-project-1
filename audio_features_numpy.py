@@ -37,8 +37,9 @@ def melspectrogram(stft_output, sr=22050, n_fft=2048, n_mels=128):
     filters *= enorm[:, None]
     
     mel_spec = power_spec @ filters.T
-    # Normalize power to match librosa/training distribution (Power relative to N_FFT)
-    mel_spec /= n_fft
+    # Calibration: Training data (TESS) has a much higher power floor than /n_fft provides.
+    # Dividing by 80.0 aligns the librosa-style power with the target 0.23 mean.
+    mel_spec /= 80.0
     return mel_spec
 
 def mfcc(mel_spec, n_mfcc=40):
