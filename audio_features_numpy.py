@@ -37,6 +37,8 @@ def melspectrogram(stft_output, sr=22050, n_fft=2048, n_mels=128):
     filters *= enorm[:, None]
     
     mel_spec = power_spec @ filters.T
+    # Normalize power to match librosa/training distribution (Power relative to N_FFT)
+    mel_spec /= n_fft
     return mel_spec
 
 def mfcc(mel_spec, n_mfcc=40):
@@ -71,7 +73,6 @@ def chroma_stft(stft_output, sr=22050, n_chroma=12):
     return chroma / (norm + 1e-10)
 
 def mfcc_from_db(db_mel, n_mfcc=40):
-    # DCT-II with ortho normalization
     n_mels = db_mel.shape[1]
     n = np.arange(n_mels)
     k = np.arange(n_mfcc)[:, None]
@@ -86,24 +87,23 @@ def extract_features_combined(y, sr):
     if len(y) < 2048:
         y = np.pad(y, (0, 2048 - len(y)))
     
-    # Feature Scaling: Global normalization disabled. 
-    # Sadness is low-energy by nature; forced normalization makes it look like Fear.
-    # if np.max(np.abs(y)) > 1e-8:
-    #     y = y / np.max(np.abs(y))
+    # Fixed Normalization: Don't use per-chunk peak boost, it kills volume features.
+    # Just ensure it's in a reasonable range.
+    max_y = np.max(np.abs(y))
+    if max_y > 1.0: y = y / max_y
     
     # STFT and Mel
     s = stft(y)
     m = melspectrogram(s, sr=sr)
     
-    # MFCC extraction (usually uses log power with fixed ref=1.0)
-    # This matches librosa.power_to_db(melspectrogram)
+    # MFCC extraction (Log power with fixed ref=1.0)
     log_m = 10.0 * np.log10(np.maximum(m, 1e-10))
     mfcc_feat = np.mean(mfcc_from_db(log_m), axis=0)
     
-    # Mel features (Linear Power Mean)
+    # Mel features (linear power mean)
     mel_feat = np.mean(m, axis=0)
     
-    # Chroma features (from linear magnitude STFT)
+    # Chroma features
     chr_feat = np.mean(chroma_stft(s, sr=sr), axis=0)
     
     return np.hstack([chr_feat, mfcc_feat, mel_feat])
