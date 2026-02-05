@@ -45,7 +45,7 @@ else:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 app.config.update(
-    MAX_CONTENT_LENGTH=50 * 1024 * 1024, # 50MB
+    MAX_CONTENT_LENGTH=4 * 1024 * 1024, # 4MB (Vercel limit)
     SQLALCHEMY_DATABASE_URI=f'sqlite:///{db_path}',
     SQLALCHEMY_TRACK_MODIFICATIONS=False
 )
@@ -103,7 +103,7 @@ def _call_ffmpeg(audio_path, sr):
 
         cmd = [
             ffmpeg_exe, '-y', '-i', audio_path,
-            '-t', '15',
+            '-t', '7',
             '-f', 'f32le', '-acodec', 'pcm_f32le', '-ar', str(sr), '-ac', '1', '-'
         ]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -239,7 +239,8 @@ def predict():
                           confidence=round(res_vars['f_conf']*100,1),
                           visual_emotion=res_vars['v_emo'], audio_emotion=res_vars['a_emo'], 
                           note=res_vars['note'], all_emotions=res_vars['a_data'], 
-                          vis_stats=res_vars['v_stats'], audio_segments=res_vars['a_segs'])
+                          vis_stats=res_vars['v_stats'], audio_segments=res_vars['a_segs'],
+                           title="Analysis Result")
 
 if __name__ == '__main__':
     with app.app_context():

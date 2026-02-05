@@ -1,7 +1,25 @@
 {% extends 'layout.html' %}
 
 {% block body %}
-<style>
+Check if the application loads correctly in production without any authorization or access errors.
+
+Identify any blank screens, white pages, or rendering failures after deployment.
+
+Test all core features and report any functionality that completely fails.
+
+Detect backend/API failures (401, 403, 404, 500 errors) during user actions.
+
+Verify authentication and authorization flows for login, logout, and protected routes.
+
+Check if environment variables are missing or misconfigured in production.
+
+Identify crashes or unhandled exceptions in the browser console.
+
+Test page refresh behavior to ensure routes do not break (no 404 on reload).
+
+Verify database connections and data fetching in deployed mode.
+
+Check build and deployment logs for critical warnings or errors.<style>
   .result-container {
     max-width: 1000px;
     margin: 40px auto;
