@@ -216,7 +216,7 @@ def predict():
             p = float(res_vars['probs'][i]) if i < len(res_vars['probs']) else 0.0
             if res_vars['v_emo'] == eid: p = max(p, 0.5)
             res_vars['a_data'].append({
-                'id': eid, 'name': LABEL_MAP.get(eid, eid).capitalize(),
+                'id': eid, 'name': LABEL_MAP.get(eid, eid).title(),
                 'emoji': EMOJI_MAP.get(eid, '❓'), 'prob': round(p * 100, 1)
             })
         res_vars['a_data'].sort(key=lambda x: x['prob'], reverse=True)
