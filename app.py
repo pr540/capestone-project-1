@@ -45,9 +45,13 @@ else:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
 app.config.update(
-    MAX_CONTENT_LENGTH=4 * 1024 * 1024, # 4MB (Vercel limit)
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'neural-signal-secret-99'),
+    MAX_CONTENT_LENGTH=10 * 1024 * 1024, # Increased to 10MB
     SQLALCHEMY_DATABASE_URI=f'sqlite:///{db_path}',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
 )
 db.init_app(app)
 
@@ -78,17 +82,34 @@ def prediction_page():
 
 @app.route('/analyze')
 def analyze():
+    from flask import session
     preds = []
     try:
-        preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(100).all()
+        # Get DB records
+        preds = PredictionResult.query.order_by(PredictionResult.timestamp.desc()).limit(50).all()
+        
+        # Session Fallback (For Vercel ephemeral storage)
+        if 'recent_preds' in session:
+            # Simple deduplication by filename + emotion
+            seen = {(p.filename, p.final_emotion) for p in preds}
+            for s_p in session['recent_preds']:
+                if (s_p['filename'], s_p['final_emotion']) not in seen:
+                    # Mock a result object for the template
+                    from datetime import datetime
+                    class MockResult: pass
+                    m = MockResult()
+                    m.id = "LATEST"
+                    m.filename = s_p['filename']
+                    m.timestamp = datetime.fromisoformat(s_p['timestamp'])
+                    m.audio_emotion = s_p['audio_emotion']
+                    m.visual_emotion = s_p['visual_emotion']
+                    m.final_emotion = s_p['final_emotion']
+                    m.confidence = s_p['confidence']
+                    preds.insert(0, m)
     except Exception as e:
         print(f"[ERROR] History query failed: {e}")
-        try:
-            with app.app_context():
-                db.create_all()
-        except Exception as e2:
-            print(f"[ERROR] Database creation failed: {e2}")
-    return render_template('history.html', predictions=preds, emoji_map=EMOJI_MAP, title="History", db_status="Online")
+    
+    return render_template('history.html', predictions=preds, emoji_map=EMOJI_MAP, title="History", db_status="Online", db_path=db_path)
 
 @app.route('/clear_history', methods=['POST'])
 def clear_history():
@@ -249,17 +270,41 @@ def predict():
             })
         res_vars['a_data'].sort(key=lambda x: x['prob'], reverse=True)
 
-        # DB
+        # DB & Session persistence (Fast Feedback for Vercel)
+        from flask import session
+        from datetime import datetime
+        
+        # 1. Update Session Cache
+        if 'recent_preds' not in session:
+            session['recent_preds'] = []
+        
+        new_result = {
+            'filename': secure_filename(file.filename),
+            'audio_emotion': str(res_vars['a_emo']),
+            'visual_emotion': str(res_vars['v_emo']),
+            'final_emotion': str(res_vars['f_emo']),
+            'confidence': float(res_vars['f_conf']),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        session['recent_preds'].insert(0, new_result)
+        session['recent_preds'] = session['recent_preds'][:10] # Keep last 10
+        session.modified = True
+        
+        # 2. Update SQLite
         try:
             db_res = PredictionResult(
-                filename=secure_filename(file.filename), audio_emotion=str(res_vars['a_emo']),
-                visual_emotion=str(res_vars['v_emo']), final_emotion=str(res_vars['f_emo']),
-                confidence=float(res_vars['f_conf'])
+                filename=new_result['filename'], audio_emotion=new_result['audio_emotion'],
+                visual_emotion=new_result['visual_emotion'], final_emotion=new_result['final_emotion'],
+                confidence=new_result['confidence']
             )
             db.session.add(db_res)
             db.session.commit()
-        except Exception:
+            print(f"[SUCCESS] Saved to DB: {db_res.id}")
+        except Exception as e:
             db.session.rollback()
+            print(f"[ERROR] DB Save failed: {e}")
+
+
 
     except Exception as e:
         res_vars['note'] = f"Error: {e}"
