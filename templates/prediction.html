@@ -12,47 +12,83 @@
                     <i class="fas fa-users-cog mr-1"></i> NEURAL AGE CALIBRATION: ACTIVE (CHILD/ADULT/SENIOR)
                 </span>
             </div>
-            <p class="text-light text-center mb-5 opacity-75">Upload audio/video for Multi-Modal Emotion Processing</p>
+            <p class="text-light text-center mb-5 opacity-75">Upload audio/video or Record live for Multi-Modal Emotion Processing
+            </p>
             
-            <div class="about-card p-5 rounded-lg shadow-lg"
-                style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
-                <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
-                    <div class="upload-box mb-4">
-                        <label for="audio_file" class="custom-file-upload">
-                            <i class="fas fa-microchip fa-3x mb-3"></i>
-                            <div class="h5 font-weight-bold">NEURAL SIGNAL UPLOAD</div>
-                            <div class="small opacity-75">Select Audio, Video, or Image file</div>
-                        </label>
-                        <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*,image/*" required class="d-none">
-                        <div id="file-name-display" class="file-name-display text-white mt-2 font-italic"></div>
-                    </div>
-                    <div class="file-info text-light mb-4 small">
-                        <div class="info-item"><i class="fas fa-check-circle text-success mr-2"></i> WAV, MP3, JPG, JPEG, PNG, WEBP, MP4, AVI,
-                            MOV, MKV, WEBM</div>
-                        <div class="info-item"><i class="fas fa-info-circle text-warning mr-2"></i> Maximum file size: 4.5MB (Vercel limit)
+            <div class="row">
+                <!-- Record Section -->
+                <div class="col-md-6 mb-4">
+                    <div class="about-card p-4 h-100 rounded-lg shadow-lg position-relative"
+                        style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
+                        <div class="text-center mb-4">
+                            <i class="fas fa-microphone-alt fa-3x text-info mb-3"></i>
+                            <h5 class="text-white font-weight-bold">LIVE AUDIO CAPTURE</h5>
+                            <p class="small text-light opacity-75">Record your voice directly</p>
                         </div>
-                    </div>
-                    
-                    <div id="file-size-display" class="file-size-display mb-4"></div>
-                    
-                    <button type="submit" id="predict-btn" class="submit-btn w-100" disabled>
-                        <i class="fas fa-bullseye mr-2"></i> Predict Emotion
-                    </button>
-                </form>
-            </div>
-            </div>
-    </div>
+            <div id="recorder-controls" class="text-center">
+                <div id="recording-status" class="mb-3 text-info small" style="visibility: hidden;">
+                    <span class="spinner-grow spinner-grow-sm mr-2"></span> Recording... <span id="timer">00:00</span>
+                </div>
+            <div class="d-flex justify-content-center gap-3">
+                <button id="start-record" class="btn btn-outline-info rounded-circle p-3 mr-3" title="Start Recording">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="stop-record" class="btn btn-outline-danger rounded-circle p-3 mr-3" title="Stop Recording" disabled>
+                    <i class="fas fa-stop"></i>
+                </button>
+                <button id="play-record" class="btn btn-outline-success rounded-circle p-3" title="Play Recording" disabled>
+                    <i class="fas fa-play-circle"></i>
+                </button>
+                            </div>
+                            <audio id="audio-playback" class="d-none" controls></audio>
+                            <div id="record-msg" class="mt-3 small text-info font-italic"></div>
+                            </div>
+                            </div>
+                            </div>
+                            
+                            <!-- Upload Section -->
+                            <div class="col-md-6 mb-4">
+                                <div class="about-card p-4 h-100 rounded-lg shadow-lg"
+                                    style="background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1);">
+                                    <form id="prediction-form" action="/predict" method="POST" enctype="multipart/form-data" class="upload-form">
+                                        <div class="upload-box mb-4">
+                                            <label for="audio_file" class="custom-file-upload">
+                                                <i class="fas fa-microchip fa-2x mb-2"></i>
+                                                <div class="font-weight-bold">NEURAL SIGNAL UPLOAD</div>
+                                                <div class="small opacity-75">Audio, Video, or Image</div>
+                                            </label>
+                                            <input type="file" id="audio_file" name="audio_file" accept="audio/*,video/*,image/*" class="d-none">
+                                            <div id="file-name-display" class="file-name-display text-white mt-2 font-italic small"></div>
+                                        </div>
+                                        <div id="file-size-display" class="file-size-display mb-3 small"></div>
+                            
+                                        <button type="submit" id="predict-btn" class="submit-btn w-100" disabled>
+                                            <i class="fas fa-bullseye mr-2"></i> Predict Emotion
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            </div>
+                            <div class="file-info text-light text-center mt-3 small">
+                                <div class="info-item d-inline-block mx-3"><i class="fas fa-check-circle text-success mr-2"></i> Real-time Recording
+                                    Enabled</div>
+                                <div class="info-item d-inline-block mx-3"><i class="fas fa-info-circle text-warning mr-2"></i> Max File: 4.5MB
+                                </div>
+                            </div>
+
+</div>
+</div>
 </section>
 
 <style>
     .custom-file-upload {
         display: block;
-        padding: 40px 25px;
+        padding: 30px 20px;
         cursor: pointer;
         background: rgba(232, 205, 48, 0.05);
         color: #e8cd30;
         border: 2px dashed rgba(232, 205, 48, 0.4);
-        border-radius: 25px;
+        border-radius: 20px;
         text-align: center;
         transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     }
@@ -61,7 +97,6 @@
         background: rgba(232, 205, 48, 0.1);
         border-color: #e8cd30;
         transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(232, 205, 48, 0.1);
     }
 
     .cognitive-pulse {
@@ -88,15 +123,11 @@
         display: none;
     }
 
-    .info-item {
-        margin-bottom: 5px;
-    }
-
     .submit-btn {
         background: #e8cd30;
         color: #111;
         border: none;
-        padding: 15px;
+        padding: 12px;
         border-radius: 8px;
         font-weight: 700;
         text-transform: uppercase;
@@ -109,37 +140,131 @@
     .submit-btn:enabled {
         opacity: 1;
         cursor: pointer;
-        box-shadow: 0 4px 15px rgba(232, 205, 48, 0.4);
     }
 
     .submit-btn:enabled:hover {
         background: #f8db40;
         transform: translateY(-2px);
     }
+
+    .btn-outline-info { color: #17a2b8; border-color: #17a2b8; }
+    .btn-outline-info:hover { background: #17a2b8; color: white; }
+    .btn-outline-danger { color: #dc3545; border-color: #dc3545; }
+    .btn-outline-danger:hover { background: #dc3545; color: white; }
+    .btn-outline-success { color: #28a745; border-color: #28a745; }
+    .btn-outline-success:hover { background: #28a745; color: white; }
 </style>
 
 <script>
-        // Display file info and enable predict button when selected
-        document.getElementById('audio_file').addEventListener('change', function (e) {
-            const file = e.target.files[0];
+            let mediaRecorder;
+            let audioChunks = [];
+            let recordedBlob;
+            let startTime;
+            let timerInterval;
+
+            const startBtn = document.getElementById('start-record');
+            const stopBtn = document.getElementById('stop-record');
+            const playBtn = document.getElementById('play-record');
+            const statusDiv = document.getElementById('recording-status');
+            const timerSpan = document.getElementById('timer');
+            const recordMsg = document.getElementById('record-msg');
+            const audioPlayback = document.getElementById('audio-playback');
+            const fileInput = document.getElementById('audio_file');
+            const predictBtn = document.getElementById('predict-btn');
         const nameDisplay = document.getElementById('file-name-display');
         const sizeDisplay = document.getElementById('file-size-display');
-        const predictBtn = document.getElementById('predict-btn');
+
+    // Timer functions
+    function updateTimer() {
+        const now = Date.now();
+        const diff = Math.floor((now - startTime) / 1000);
+        const mins = String(Math.floor(diff / 60)).padStart(2, '0');
+        const secs = String(diff % 60).padStart(2, '0');
+        timerSpan.textContent = `${mins}:${secs}`;
+    }
+
+    // Recording Logic
+    startBtn.onclick = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                recordedBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(recordedBlob);
+                audioPlayback.src = audioUrl;
+
+                // Prepare file for submission
+                const file = new File([recordedBlob], "live_recording.wav", { type: 'audio/wav' });
+
+                // Set to UI
+                nameDisplay.innerHTML = `<i class="fas fa-microphone mr-2"></i> Live Recording.wav`;
+                nameDisplay.style.display = 'block';
+                sizeDisplay.style.color = '#4dff4d';
+                sizeDisplay.innerHTML = `✅ Recording Ready (${(file.size / 1024).toFixed(1)} KB)`;
+
+                predictBtn.disabled = false;
+                playBtn.disabled = false;
+                recordMsg.textContent = "Recording captured and ready for analysis.";
+
+                // Trick to put the file into the file input (though we'll use form data on submit)
+                // We'll actually handle it in the submit handler
+                window.recordedFile = file;
+            };
+
+            mediaRecorder.start();
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
+
+            statusDiv.style.visibility = 'visible';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            playBtn.disabled = true;
+            predictBtn.disabled = true;
+            recordMsg.textContent = "Signal acquisition in progress...";
+
+        } catch (err) {
+            console.error("Recording error:", err);
+            recordMsg.textContent = "Error: Mic access denied or not found.";
+        }
+    };
+
+    stopBtn.onclick = () => {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        clearInterval(timerInterval);
+
+        statusDiv.style.visibility = 'hidden';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+    };
+
+    playBtn.onclick = () => {
+        audioPlayback.play();
+    };
+
+    // File Upload display logic
+    fileInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        window.recordedFile = null; // Clear recorded file if manual upload is used
 
         if (file) {
             nameDisplay.innerHTML = `<i class="fas fa-file-alt mr-2"></i> ${file.name}`;
             nameDisplay.style.display = 'block';
             
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            const maxSizeMB = 4.5; // Vercel limit
-
-            if (sizeMB > maxSizeMB) {
+            if (sizeMB > 4.5) {
                 sizeDisplay.style.color = '#ff4d4d';
-                sizeDisplay.innerHTML = `⚠️ File size: ${sizeMB}MB - Too large! Maximum is ${maxSizeMB}MB`;
+                sizeDisplay.innerHTML = `⚠️ Too large! (${sizeMB}MB)`;
                 predictBtn.disabled = true;
             } else {
                 sizeDisplay.style.color = '#4dff4d';
-                sizeDisplay.innerHTML = `✅ File size: ${sizeMB}MB - Ready for analysis`;
+                sizeDisplay.innerHTML = `✅ Ready for analysis (${sizeMB}MB)`;
                 predictBtn.disabled = false;
             }
         } else {
@@ -149,13 +274,38 @@
         }
     });
 
-        // Handle form submission with loading state
+            // Unified Form Submission
         document.getElementById('prediction-form').addEventListener('submit', function (e) {
-        const btn = document.getElementById('predict-btn');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Analyzing... Please wait';
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
+            if (window.recordedFile) {
+                e.preventDefault();
+                const formData = new FormData();
+                formData.append('audio_file', window.recordedFile);
+
+                const btn = document.getElementById('predict-btn');
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Processing Neural Signal...';
+                btn.disabled = true;
+
+                fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.text())
+                    .then(html => {
+                        document.open();
+                        document.write(html);
+                        document.close();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        btn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i> Analysis Failed';
+                        btn.disabled = false;
+                    });
+            } else {
+            const btn = document.getElementById('predict-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Analyzing... Please wait';
+            btn.disabled = true;
+        }
     });
-    </script>
+</script>
 <br><br><br>
 {% endblock %}
