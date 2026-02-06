@@ -51,6 +51,14 @@ app.config.update(
 )
 db.init_app(app)
 
+# Ensure DB is created on startup (Crucial for Vercel deployment)
+with app.app_context():
+    try:
+        db.create_all()
+        print(f"[INFO] Database initialized at: {db_path}")
+    except Exception as e:
+        print(f"[ERROR] DB initialization failed: {e}")
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static', 'images'),
@@ -269,6 +277,4 @@ def predict():
                            title="Analysis Result")
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(host='0.0.0.0', debug=True, port=10000)
