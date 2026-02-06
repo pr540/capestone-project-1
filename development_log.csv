@@ -1,0 +1,5 @@
+Prompt_ID,Task_Description,Action_Taken,Status,Errors_and_Fixes
+1,Locally run the project,"Initialized Flask server on port 10000 and verified connection using Invoke-WebRequest.",COMPLETED,None
+2,Add direct voice recording,"Updated prediction.html with MediaRecorder API and a new UI for live microphone capture.",COMPLETED,None
+3,Fix database persistence on Vercel,"Moved db.init to app startup and implemented Session-based fallback for ephemeral storage.","COMPLETED / DEPLOYED","Issue: SQLite reset on Vercel. Fix: Hybrid Session+DB storage."
+4,Generate progress report,"Summarized all tasks, tech stack, and errors into a CSV log and summary.",COMPLETED,None
